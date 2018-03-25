@@ -1,0 +1,5 @@
+--maximum-line-length=120
+--paren-tightness=0
+--nooutdent-long-comments
+--noblanks-before-comments
+--nodelete-old-newlines
