@@ -1,6 +1,5 @@
 #
 
-
 package ManulC::Class;
 
 use v5.24;
@@ -8,8 +7,13 @@ use utf8;
 use strict;
 use warnings;
 
+our $VERSION = 'v0.001.001';
+
+require Moo;
+require Moo::Role;
+
 use Module::Load qw<load load_remote>;
-use ManulC::Util qw<:namespace>;
+use ManulC::Util qw<:namespace :errors>;
 
 use constant DEFAULT_BASEVERSION => '5.24';
 
@@ -18,7 +22,7 @@ our %_classInfo;
 
 # Module parameters and their properties
 my %paramSet = (
-    '.ROLE'        => {},
+    '.ROLE' => {},
     #application    => { roles => [qw<Optrade::Role::App>], },
     #dbiTransparent => { roles => [qw<Optrade::Role::DBI::Transparent>], },
     #dbiBase        => { roles => [qw<Optrade::Role::DBI::Base>], },
@@ -29,16 +33,67 @@ my %paramSet = (
 );
 
 sub import {
-    my $class = shift;
+    my $class  = shift;
     my $target = caller;
 
     # .ROLE param can only be the first in the list.
     my $isRole = defined $_[0] && $_[0] eq '.ROLE';
-    shift if $isRole; # Remove .ROLE from the arguments list.
+    shift if $isRole;    # Remove .ROLE from the arguments list.
 
-    $_classInfo{$target}{isRole} = 1;
+    my $baseMod = $isRole ? 'Moo::Role' : 'Moo';
+    $_classInfo{$target}{isRole}  = 1;
+    $_classInfo{$target}{baseMod} = $baseMod;
+
+    my $featureSet = ':' . DEFAULT_BASEVERSION;
+    my ( @passOnParams, @myParams );
+
+    while ( @_ ) {
+        my $param = shift;
+        if ( $param =~ /^:/ ) {
+            $featureSet = $param;
+        }
+        elsif ( defined $paramSet{$param} ) {
+            push @myParams, $param;
+        }
+        else {
+            push @passOnParams, $param;
+        }
+    }
+
+    foreach my $param ( @myParams ) {
+        if ( my $installer = __PACKAGE__->can( "_install_$param" ) ) {
+            $installer->( $class, $target );
+        }
+    }
+
+    require feature;
+    feature->import( $featureSet );
     
-    my $featureSet = ':' + DEFAULT_BASEVERSION;
+    eval {
+        load_remote $target, 'Syntax::Keyword::Try';  
+    };
+    die $@ if $@;
+
+    namespace::clean->import(
+        -cleanee => $target,
+        -except  => qw(meta),
+    );
+
+    # class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
+    injectCode(
+        $target, ( $isRole ? "roleInit" : "classInit" ),
+        sub { _classInit( $target ) }
+    );
+
+    @_ = ( $baseMod, @passOnParams );
+
+    goto \&{"${baseMod}::import"};
+}
+
+# This sub applies what was defined by parameters.
+sub _classInit {
+    my $target = shift;
+
 }
 
 1;
