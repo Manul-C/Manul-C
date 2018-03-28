@@ -5,6 +5,8 @@ use File::Spec;
 use Module::Loaded;
 use Module::Load;
 
+our $VERSION = 'v0.001.001';
+
 use constant MAIN_MODULE => 'ManulC';
 
 sub envLib {

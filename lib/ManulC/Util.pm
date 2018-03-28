@@ -3,6 +3,8 @@
 package ManulC::Util;
 use v5.24;
 
+our $VERSION = 'v0.001.001';
+
 use Carp;
 use Module::Load qw<load>;
 use Module::Loaded qw<is_loaded>;
