@@ -5,6 +5,7 @@ package ManulCTest;
 # Test functionality wrapper module
 
 our $VERSION = 'v0.001.001';
+our $TESTING = !!1;
 
 use Module::Load qw<load_remote>;
 require Test2::V0;
@@ -19,7 +20,7 @@ sub import {
     
     Syntax::Keyword::Try->import_into($target);
     
-    $ENV{MANULC_TESTING} //= 1;
+    $ENV{MANULC_TESTING} //= $TESTING;
     
     unshift @_, 'Test2::V0';
     goto &Test2::V0::import;
