@@ -25,7 +25,8 @@ our %_classInfo;
 
 # Module parameters and their properties
 my %paramSet = (
-    '-role' => {},
+    '-role'  => {},
+    allTypes => {},
     #application    => { roles => [qw<Optrade::Role::App>], },
     #dbiTransparent => { roles => [qw<Optrade::Role::DBI::Transparent>], },
     #dbiBase        => { roles => [qw<Optrade::Role::DBI::Base>], },
@@ -52,10 +53,12 @@ sub import {
 
     while ( @_ ) {
         my $param = shift;
+        #say STDERR "ManulC::Class param: ", $param;
         if ( $param =~ /^:/ ) {
             $featureSet = $param;
         }
         elsif ( defined $paramSet{$param} ) {
+            #say STDERR "Using ", $param, " as mine";
             push @myParams, $param;
         }
         else {
@@ -71,9 +74,9 @@ sub import {
 
     require feature;
     feature->import( $featureSet );
-    
-    Syntax::Keyword::Try->import_into($target);
-    
+
+    Syntax::Keyword::Try->import_into( $target );
+
     namespace::clean->import(
         -cleanee => $target,
         -except  => qw(meta),
@@ -94,6 +97,12 @@ sub import {
 sub _modInit {
     my $target = shift;
 
+}
+
+sub _install_allTypes {
+    my ( $class, $target ) = @_;
+    #say STDERR "Installing all types into $target";
+    load_remote( $target, "ManulC::Types", qw<-all> );
 }
 
 1;
