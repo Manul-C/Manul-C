@@ -8,6 +8,7 @@ use Devel::StackTrace;
 use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 
 use ManulC::Exception;
+use ManulC::Util qw<:execControl>;
 
 use ManulC::Class;
 classInit;
@@ -33,6 +34,28 @@ has app => (
     predicate => 1,
     weak_ref  => 1,
 );
+
+has DEBUG => (
+    is      => 'rw',
+    lazy    => 1,
+    clearer => 1,
+    builder => 'initDEBUG',
+);
+
+has TEST => (
+    is      => 'rw',
+    lazy    => 1,
+    clearer => 1,
+    builder => 'initTEST',
+);
+
+sub initDEBUG {
+    return $ManulC::Util::DEBUG;
+}
+
+sub initTEST {
+    return !!( $ENV{MANULC_TEST} // 0 );
+}
 
 1;
 

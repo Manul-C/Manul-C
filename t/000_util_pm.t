@@ -1,6 +1,5 @@
 #
 
-use v5.24;
 use ManulCTest;
 use ManulC::Util qw<:all>;
 
