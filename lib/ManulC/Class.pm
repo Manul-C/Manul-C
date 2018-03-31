@@ -11,6 +11,9 @@ our $VERSION = 'v0.001.001';
 
 require Moo;
 require Moo::Role;
+require namespace::clean;
+require Syntax::Keyword::Try;
+require MooX::TypeTiny;
 
 use Module::Load qw<load load_remote>;
 use ManulC::Util qw<:namespace :errors>;
@@ -22,7 +25,7 @@ our %_classInfo;
 
 # Module parameters and their properties
 my %paramSet = (
-    '.ROLE' => {},
+    '-role' => {},
     #application    => { roles => [qw<Optrade::Role::App>], },
     #dbiTransparent => { roles => [qw<Optrade::Role::DBI::Transparent>], },
     #dbiBase        => { roles => [qw<Optrade::Role::DBI::Base>], },
@@ -36,9 +39,9 @@ sub import {
     my $class  = shift;
     my $target = caller;
 
-    # .ROLE param can only be the first in the list.
-    my $isRole = defined $_[0] && $_[0] eq '.ROLE';
-    shift if $isRole;    # Remove .ROLE from the arguments list.
+    # -role param can only be the first in the list.
+    my $isRole = defined $_[0] && $_[0] eq '-role';
+    shift if $isRole;    # Remove -role from the arguments list.
 
     my $baseMod = $isRole ? 'Moo::Role' : 'Moo';
     $_classInfo{$target}{isRole}  = 1;
@@ -69,11 +72,8 @@ sub import {
     require feature;
     feature->import( $featureSet );
     
-    eval {
-        load_remote $target, 'Syntax::Keyword::Try';  
-    };
-    die $@ if $@;
-
+    Syntax::Keyword::Try->import_into($target);
+    
     namespace::clean->import(
         -cleanee => $target,
         -except  => qw(meta),
@@ -82,7 +82,7 @@ sub import {
     # class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
     injectCode(
         $target, ( $isRole ? "roleInit" : "classInit" ),
-        sub { _classInit( $target ) }
+        sub { _modInit( $target ) }
     );
 
     @_ = ( $baseMod, @passOnParams );
@@ -91,7 +91,7 @@ sub import {
 }
 
 # This sub applies what was defined by parameters.
-sub _classInit {
+sub _modInit {
     my $target = shift;
 
 }
