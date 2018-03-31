@@ -8,6 +8,7 @@ our $VERSION = 'v0.001.001';
 use Carp;
 use Module::Load qw<load>;
 use Module::Loaded qw<is_loaded>;
+use Scalar::Util qw<looks_like_number>;
 
 use Exporter;
 
@@ -20,6 +21,7 @@ our %EXPORT_TAGS = (
     namespace   => [qw<injectCode getNS fetchGlobal loadModule loadClass>],
     execControl => [qw<$DEBUG>],
     errors      => [qw<FAIL setFailSub>],
+    data        => [qw<is_true>],
 );
 
 # Fill the @EXPORT_OK array from EXPORT_TAGS
@@ -159,6 +161,25 @@ sub loadModule {
 # Same as loadModule() but implicitly adds check for method 'new'.
 sub loadClass {
     return loadModule( @_, method => 'new' );
+}
+
+# Converts its parameter into a boolean value. Perl-false values (except undef) are used as-is. Others either checked
+# for being a number; or a string representing basic boolean words yes|on|true or no|off|false.
+# For any other value 'undef' is returned.
+sub is_true {
+    my $val = shift;
+
+    return undef unless defined $val;
+    return !!0 if !$val;
+
+    if ( looks_like_number( $val ) ) {
+        return !!$val;
+    }
+
+    return !!1 if $val =~ /^(yes|on|true)$/ni;
+    return !!0 if $val =~ /^(no|off|false)$/ni;
+
+    return undef;
 }
 
 1;
