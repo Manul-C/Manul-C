@@ -12,12 +12,8 @@ BEGIN { extends "Types::Standard"; }
 
 our $VERSION = 'v0.001.001';
 
-declare AllOf, as Object,
+declare AllOf, 
   where { 1 },
-  inline_as {
-    my ( $constraint, $varname ) = @_;
-    return $constraint->parent->inline_check( $varname );
-  },
   constraint_generator => sub {
     my @cParams = @_;
     Error::TypeTiny->throw( message => "AllOf[`a] requires at least one parameter" ) unless @cParams > 1;
