@@ -4,8 +4,6 @@ package ManulC::Exception;
 
 our $VERSION = 'v0.001.001';
 
-use Syntax::Keyword::Try;
-
 use ManulC::Class;
 extends qw<ManulC::Object>;
 with 'Throwable';
