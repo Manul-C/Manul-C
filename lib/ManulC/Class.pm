@@ -16,7 +16,7 @@ require Syntax::Keyword::Try;
 require MooX::TypeTiny;
 
 use Module::Load qw<load load_remote>;
-use ManulC::Util qw<:namespace :errors>;
+use ManulC::Util;
 
 use constant DEFAULT_BASEVERSION => '5.24';
 
@@ -35,6 +35,63 @@ my %paramSet = (
     #logging        => { roles => [qw<Optrade::Role::Logging>], },
     #tuner          => { roles => [qw<Optrade::Role::Tuner>], },
 );
+
+# **BEGIN Install wrappers for Moo's has/with/extends to record basic object
+
+# Moo doesn't provide a clean way to get all object's attributes. The only
+# really good way to distinguish between a key on object's hash and an
+# attribute is to record what is passed to Moo's sub 'has'. Since Moo
+# generates it for each class separately (as well as other 'keywords') and
+# since Moo::Role does it on its own too then the only correct approach to
+# intercept everything is to tap into Moo's guts. And the best way to do so
+# is to intercept calls to _install_tracked() as this sub is used to
+# register every single Moo-generated code ref. Though this is a hacky way
+# on its own but the rest approaches seem to be even more hacky and no doubt
+# unreliable.
+#
+# Additionally, interception is used to tap into processing of Moo::extends in
+# order to apply modifiers to the target classes. This is the only known way to
+# get around a problem with failed to compile modules. The problem is about
+# applying roles to them. This is causing a fatal exception which masks the
+# actual compilation error.
+
+my %MooSugars = (
+    extends => '_after_extends',
+    with    => '_after_with',
+    has     => '_after_has',
+);
+
+foreach my $module ( qw(Moo Moo::Role) ) {
+    my $ns               = ManulC::Util::getNS( $module );
+    my $_install_tracked = *{ $ns->{'_install_tracked'} }{CODE};
+    ManulC::Util::injectCode(
+        $module,
+        '_install_tracked',
+        sub {
+            my $ovCode;
+            my $target    = $_[0];
+            my $codeName  = $_[1];
+            my $ovSubName = $MooSugars{$codeName};
+            $ovCode = __PACKAGE__->can( $ovSubName ) if $ovSubName;
+            if ( $ovCode ) {
+
+                #say STDERR "Installing wrapper $codeName on $target";
+                my $origCode = $_[2];
+                $_[2] = sub {
+
+                    #say STDERR "Orig ${target}::$codeName(".join(",",@_).") code first.";
+                    &$origCode( @_ );
+
+                    #say STDERR "Extension ${target}::$codeName code next.";
+                    $ovCode->( $target, @_ );
+                };
+            }
+            goto &$_install_tracked;
+        }
+    );
+}
+
+# **END of has/with/extends wrappers.
 
 sub import {
     my $class  = shift;
@@ -83,7 +140,7 @@ sub import {
     );
 
     # class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
-    injectCode(
+    ManulC::Util::injectCode(
         $target, ( $isRole ? "roleInit" : "classInit" ),
         sub { _modInit( $target ) }
     );
@@ -97,6 +154,97 @@ sub import {
 sub _modInit {
     my $target = shift;
 
+}
+
+sub _apply_roles {
+    my @targets = grep { defined $_classInfo{$_}{assignedRoles} } ( scalar(@_) ? @_ : keys %_classInfo );
+
+    foreach my $target (@targets) {
+        my @classRoles = @{ $_classInfo{$target}{assignedRoles} };
+
+        # Preload modules. This must reveal any possible syntax errors.
+        load_package($_) foreach @classRoles;
+
+        push @{ $_classInfo{$target}{WITH} }, @classRoles;
+
+        _apply_roles(@classRoles);
+        Moo::Role->apply_roles_to_package( $target, @classRoles );
+        $_classInfo{$target}{baseMod}->_maybe_reset_handlemoose($target);
+        delete $_classInfo{$target}{assignedRoles};
+    }
+}
+
+# _rebuildCache() rebuilds cached information about class' structures. Note that it doesn't rebuilds all information but
+# rather updates cache with newly declared classes.
+sub _rebuildCache {
+    foreach my $class (@_) {
+        next if defined $_classInfo{'.cached'}{$class};
+        my @classAttrs;
+        if ( defined $_classInfo{$class}{registeredAttrs} ) {
+            if ( defined $_classInfo{$class}{registeredAttrs}{list} ) {
+                push @classAttrs,
+                  map { $_->{attr} }
+                  @{ $_classInfo{$class}{registeredAttrs}{list} };
+            }
+        }
+        if ( defined $_classInfo{$class}{ISA} ) {
+            push @classAttrs, getAllAttrs( @{ $_classInfo{$class}{ISA} } );
+        }
+        if ( defined $_classInfo{$class}{WITH} ) {
+            push @classAttrs, getAllAttrs( @{ $_classInfo{$class}{WITH} } );
+        }
+        my @base = eval "\@$class\::ISA";
+        push @classAttrs, getAllAttrs(@base) if @base;
+
+        # Leave uniq only attrs.
+        @classAttrs = keys %{ { map { $_ => 1 } @classAttrs } };
+        $_classInfo{'.cached'}{$class}{registeredAttrs} =
+          { map { $_ => !!1, } @classAttrs };
+    }
+}
+
+# Returns list of all class(es) attributes, including its roles and ancestors.
+# Accepts list of classes as parameters
+sub getAllAttrs {
+    _rebuildCache(@_);
+    return map { keys %{ $_classInfo{'.cached'}{$_}{registeredAttrs} } } @_;
+}
+
+# Returns a hash of $class registered attributes. Hash maps attribute name into true value.
+sub getClassAttrs {
+    my ($class) = @_;
+    _rebuildCache($class);
+    return $_classInfo{'.cached'}{$class}{registeredAttrs};
+}
+
+sub registeredClass {
+    my ($class) = @_;
+    return defined $_classInfo{$class};
+}
+
+sub _after_extends {
+    my $target = shift;
+
+    push @{ $_classInfo{$target}{ISA} }, @_;
+    delete $_classInfo{'.cached'};
+    _apply_roles( $target );
+}
+
+sub _after_with {
+    my $target = shift;
+
+    push @{ $_classInfo{$target}{WITH} }, @_;
+
+    delete $_classInfo{'.cached'};
+}
+
+sub _after_has {
+    my $target = shift;
+    my ( $attr ) = @_;
+
+    my $attrData = { attr => $attr, options => [ @_[ 1 .. $#_ ] ] };
+    push @{ $_classInfo{$target}{registeredAttrs}{list} }, $attrData;
+    delete $_classInfo{'.cached'};
 }
 
 sub _install_allTypes {
