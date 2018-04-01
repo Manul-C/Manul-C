@@ -8,6 +8,7 @@ our $VERSION = 'v0.001.001';
 use Carp;
 use Module::Load qw<load>;
 use Module::Loaded qw<is_loaded>;
+use Sub::Install qw<install_sub>;
 use Scalar::Util qw<looks_like_number>;
 
 use Exporter;
@@ -17,8 +18,13 @@ our @ISA = qw<Exporter>;
 our @EXPORT_OK;
 
 our %EXPORT_TAGS = (
-    all         => \@EXPORT_OK,
-    namespace   => [qw<injectCode getNS fetchGlobal loadModule loadClass>],
+    all       => \@EXPORT_OK,
+    namespace => [
+        qw<
+          injectCode getNS fetchGlobal loadModule loadClass
+          hasRegisteredClass getAllAttrs hasAttribute
+          >
+    ],
     execControl => [qw<$DEBUG>],
     errors      => [qw<FAIL setFailSub>],
     data        => [qw<is_true>],
@@ -29,6 +35,15 @@ push @EXPORT_OK, @{ $EXPORT_TAGS{$_} } foreach keys %EXPORT_TAGS;
 
 # Debug mode.
 our $DEBUG = !!( $ENV{MANULC_DEBUG} // 0 );
+
+# --- Install aliased functions
+
+install_sub(
+    {
+        code => \&ManulC::Class::registeredClass,
+        as   => 'hasRegisteredClass',
+    }
+);
 
 # --- ERROR Handling functions
 my $failSub = undef;
@@ -180,6 +195,26 @@ sub is_true {
     return !!0 if $val =~ /^(no|off|false)$/ni;
 
     return undef;
+}
+
+# NOTE: getClassAttributes and hasAttribute work only for classes declared with ManulC::Class!
+
+# Returns list of all attributes of $class
+sub getClassAttributes {
+    my $class = shift;
+    $class = ref( $class ) // $class;
+    return Optrade::Class::getAllAttrs( $class );
+}
+
+# Returns true if $attr is defined in $class
+sub hasAttribute {
+    my ( $class, $attr ) = @_;
+    FAIL( "No class name defined" )     unless defined $class;
+    FAIL( "No attribute name defined" ) unless defined $attr;
+
+    $class = ref( $class ) if ref( $class );
+
+    return defined Optrade::Class::getClassAttrs( $class )->{$attr};
 }
 
 1;
