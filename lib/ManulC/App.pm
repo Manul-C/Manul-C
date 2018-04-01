@@ -2,7 +2,37 @@
 
 package ManulC::App;
 
+use ManulC::Util qw<:namespace>;
+
 our $VERSION = 'v0.001.001';
+
+use ManulC::Class;
+extends qw<ManulC::Object>;
+
+# --- Public methods
+
+sub BUILD {
+    my $this = shift;
+
+    # This is to prevent ManulC::Object::create() from falling into a deep recursion pitfall. After all, what's the
+    # point of pointing to itself?
+    $this->_set_app( undef );
+}
+
+# Create a new object within ManulC application ecosystem.
+around create => sub {
+    my $orig  = shift;
+    my $this  = shift;
+    my $class = shift;
+
+    my @profile;
+
+    if ( hasRegisteredClass( $class ) && $class->isAttribute( 'app' ) ) {
+        push @profile, app => $this;
+    }
+
+    return $orig->( $this, $class, @profile, @_ );
+};
 
 1;
 

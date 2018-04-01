@@ -5,14 +5,30 @@ package ManulC::Object;
 use Devel::StackTrace;
 use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 
-use ManulC::Exception;
 use ManulC::Util qw<:execControl :data :namespace>;
 use Module::Loaded;
+use Sub::Install qw<install_sub>;
 
 use ManulC::Class qw<allTypes>;
 classInit;
 
 our $VERSION = 'v0.001.001';
+
+# --- Install aliases to external functions for the purpose of avoiding nested calls for the perfomance purpose.
+
+install_sub(
+    {
+        code => \&ManulC::Util::hasAttribute,
+        as   => 'isAttribute',
+    }
+);
+
+install_sub(
+    {
+        code => \&ManulC::Util::getClassAttributes,
+        as   => 'allAttributes',
+    }
+);
 
 # --- Internal attributes
 
@@ -39,7 +55,7 @@ has __orig_stack => ( is => 'rw', clearer => 1, );
 # Main application object.
 has app => (
     is        => 'rwp',
-    isa       => InstanceOf ["ManulC::App"],
+    isa       => Maybe [ InstanceOf ["ManulC::App"] ],
     predicate => 1,
     weak_ref  => 1,
 );
@@ -83,12 +99,29 @@ sub BUILD {
     }
 }
 
+# Create a new object.
+sub create {
+    my $this  = shift;
+    my $class = shift;
+
+    $class = ref( $class ) // $class;
+
+    loadClass( $class );
+
+    # Note that application itself will always have app attribute set to undef.
+    if ( $this->has_app && defined $this->app ) {
+        return $this->app->create( $class, @_ );
+    }
+
+    return $class->new( @_ );
+}
+
 sub initDEBUG {
     return !!$ManulC::Util::DEBUG;
 }
 
 sub initTEST {
-    return !!( $ENV{MANULC_TEST} // (is_loaded("ManulCTest") && $ManulCTest::TESTING) // 0 );
+    return !!( $ENV{MANULC_TEST} // ( is_loaded( "ManulCTest" ) && fetchGlobal( '$ManulCTest::TESTING' ) ) // 0 );
 }
 
 sub initSTACKTRACE {
@@ -144,7 +177,7 @@ sub __setup_origination {
     $this->__orig_stack(
         Devel::StackTrace->new(
             frame_filter => sub { $frmCount++ >= $level }
-        )
+          )
       )
       if ( $this->STACKTRACE );
 
