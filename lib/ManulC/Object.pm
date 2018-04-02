@@ -2,12 +2,14 @@
 
 package ManulC::Object;
 
-use Devel::StackTrace;
+
+require Devel::StackTrace;
+use Module::Loaded;
+use Sub::Install qw<install_sub>;
 use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 
 use ManulC::Util qw<:execControl :data :namespace>;
-use Module::Loaded;
-use Sub::Install qw<install_sub>;
+require ManulC::Exception;
 
 use ManulC::Class qw<allTypes>;
 classInit;

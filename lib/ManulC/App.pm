@@ -3,6 +3,7 @@
 package ManulC::App;
 
 use ManulC::Util qw<:namespace>;
+use ManulC::Exception;
 
 our $VERSION = 'v0.001.001';
 
