@@ -56,9 +56,9 @@ my %paramSet = (
 # actual compilation error.
 
 my %MooSugars = (
-    extends => '_after_extends',
-    with    => '_after_with',
-    has     => '_after_has',
+    'extends' => '_after_extends',
+    'with'    => '_after_with',
+    'has'     => '_after_has',
 );
 
 foreach my $module ( qw(Moo Moo::Role) ) {
