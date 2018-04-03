@@ -2,8 +2,6 @@
 
 package ManulC::Exception;
 
-our $VERSION = 'v0.001.001';
-
 use Scalar::Util qw<blessed>;
 use Module::Find;
 
@@ -11,9 +9,17 @@ use ManulC::Class;
 extends qw<ManulC::Object>;
 with 'Throwable';
 
+our $VERSION = 'v0.001.001';
+
 use overload fallback => 1, q<""> => 'stringify';
 
 # --- Public attributes
+
+# Override ManulC::Object's app attribute to preserve application's object for later analysis if the exception would
+# fall out of application's scope accidentally.
+has '+app' => (
+    weak_ref => 0,
+);
 
 # Exception main message.
 has message => (
@@ -46,6 +52,16 @@ has object => (
 );
 
 # --- Public methods
+
+sub BUILD {
+    my $this = shift;
+
+    warn __PACKAGE__ . " must not be used directly to create exceptions."
+      if ref( $this ) eq __PACKAGE__;
+      
+    warn ref( $this ) . " must consume either " . __PACKAGE__ . "::Mortal or " . __PACKAGE__ . "::Harmless roles"
+      unless $this->does( __PACKAGE__ . '::Mortal' ) || $this->does( __PACKAGE__ . '::Harmless' );
+}
 
 # Method throw() attempts to correctly determine correct file/line/stacktrace
 # values before passing control to the original method.
