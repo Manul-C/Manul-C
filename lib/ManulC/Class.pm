@@ -62,8 +62,7 @@ my %MooSugars = (
 );
 
 foreach my $module ( qw(Moo Moo::Role) ) {
-    my $ns               = ManulC::Util::getNS( $module );
-    my $_install_tracked = *{ $ns->{'_install_tracked'} }{CODE};
+    my $_install_tracked = ManulC::Util::fetchGlobal( "&${module}::_install_tracked" );
     ManulC::Util::injectCode(
         $module,
         '_install_tracked',
@@ -157,19 +156,19 @@ sub _modInit {
 }
 
 sub _apply_roles {
-    my @targets = grep { defined $_classInfo{$_}{assignedRoles} } ( scalar(@_) ? @_ : keys %_classInfo );
+    my @targets = grep { defined $_classInfo{$_}{assignedRoles} } ( scalar( @_ ) ? @_ : keys %_classInfo );
 
-    foreach my $target (@targets) {
+    foreach my $target ( @targets ) {
         my @classRoles = @{ $_classInfo{$target}{assignedRoles} };
 
         # Preload modules. This must reveal any possible syntax errors.
-        load_package($_) foreach @classRoles;
+        load_package( $_ ) foreach @classRoles;
 
         push @{ $_classInfo{$target}{WITH} }, @classRoles;
 
-        _apply_roles(@classRoles);
+        _apply_roles( @classRoles );
         Moo::Role->apply_roles_to_package( $target, @classRoles );
-        $_classInfo{$target}{baseMod}->_maybe_reset_handlemoose($target);
+        $_classInfo{$target}{baseMod}->_maybe_reset_handlemoose( $target );
         delete $_classInfo{$target}{assignedRoles};
     }
 }
@@ -177,7 +176,7 @@ sub _apply_roles {
 # _rebuildCache() rebuilds cached information about class' structures. Note that it doesn't rebuilds all information but
 # rather updates cache with newly declared classes.
 sub _rebuildCache {
-    foreach my $class (@_) {
+    foreach my $class ( @_ ) {
         next if defined $_classInfo{'.cached'}{$class};
         my @classAttrs;
         if ( defined $_classInfo{$class}{registeredAttrs} ) {
@@ -194,7 +193,7 @@ sub _rebuildCache {
             push @classAttrs, getAllAttrs( @{ $_classInfo{$class}{WITH} } );
         }
         my @base = eval "\@$class\::ISA";
-        push @classAttrs, getAllAttrs(@base) if @base;
+        push @classAttrs, getAllAttrs( @base ) if @base;
 
         # Leave uniq only attrs.
         @classAttrs = keys %{ { map { $_ => 1 } @classAttrs } };
@@ -206,19 +205,19 @@ sub _rebuildCache {
 # Returns list of all class(es) attributes, including its roles and ancestors.
 # Accepts list of classes as parameters
 sub getAllAttrs {
-    _rebuildCache(@_);
+    _rebuildCache( @_ );
     return map { keys %{ $_classInfo{'.cached'}{$_}{registeredAttrs} } } @_;
 }
 
 # Returns a hash of $class registered attributes. Hash maps attribute name into true value.
 sub getClassAttrs {
-    my ($class) = @_;
-    _rebuildCache($class);
+    my ( $class ) = @_;
+    _rebuildCache( $class );
     return $_classInfo{'.cached'}{$class}{registeredAttrs};
 }
 
 sub registeredClass {
-    my ($class) = @_;
+    my ( $class ) = @_;
     return defined $_classInfo{$class};
 }
 
