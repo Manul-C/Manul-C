@@ -2,14 +2,12 @@
 
 package ManulC::Object;
 
-
 require Devel::StackTrace;
 use Module::Loaded;
 use Sub::Install qw<install_sub>;
 use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 
 use ManulC::Util qw<:execControl :data :namespace>;
-require ManulC::Exception;
 
 use ManulC::Class qw<allTypes>;
 classInit;
@@ -118,6 +116,120 @@ sub create {
     return $class->new( @_ );
 }
 
+# --- Exception support methods.
+# Note: Those are mainly oriented at providing correct object value for an exception object. Additionally, they take
+# special measures to determine correct app, file, line, and stacktrace
+
+# Prepares standard profile for an exception constructor.
+sub _makeExceptionProfile {
+    my $this = shift;
+    my ( $pkg, $fileName, $line );
+
+    my @profile = (
+        object => $this,
+    );
+
+    my $backFrames = 1;
+    my $thisPkg    = ref( $this );
+    while ( !defined $pkg ) {
+        my @ci = caller( $backFrames );
+
+        if ( $ci[3] =~ /::(Throw|Transmute)$/n ) {
+
+            # Found the stack frame.
+            ( $pkg, $fileName, $line ) = @ci[ 0, 1, 2 ];
+        }
+        else {
+            $backFrames++;
+        }
+    }
+
+    my $skipCnt    = 0;
+    my $stackTrace = Devel::StackTrace->new(
+        frame_filter => sub {
+            return ( $skipCnt++ > $backFrames );
+        },
+        message => "",
+    );
+
+    push @profile, app => $this->app if $this->has_app;
+
+    return @profile;
+}
+
+sub _completeException {
+    my $this = shift;
+    my ( $exception ) = @_;
+
+    return $exception if !defined( $exception ) || ref( $exception ) || $exception =~ /^ManulC::Exception::/;
+
+    return 'ManulC::Exception::' . $exception;
+}
+
+sub Throw {
+    my $this = shift;
+    my ( $exception, $text, @params ) = @_;
+
+    $exception = $this->_completeException( $exception );
+
+    unless ( Role::Tiny::does_role( $exception, 'Throwable' ) ) {
+        $text      = "Cannot throw exception '" . $exception . "': it's not a Throwable";
+        $exception = "ManulC::Exception::Fatal";
+    }
+
+    $exception->throw(
+        message => $text,
+        $this->_makeExceptionProfile,
+        @params
+    );
+}
+
+sub Transmute {
+    my $this = shift;
+    my ( $class, $exception, $force, @params ) = @_;
+
+    $class = $this->_completeException( $class );
+
+    my $text;
+
+    unless ( Role::Tiny::does_role( $class, 'Throwable' ) ) {
+        $text      = "Cannot transmute into exception '" . $class . "': it's not a Throwable";
+        $exception = "ManulC::Exception::Fatal";
+    }
+
+    return $class->transmute(
+        $exception, $force,
+        ( defined $text ? ( message => $text ) : () ),
+        $this->_makeExceptionProfile, @params
+    );
+}
+
+sub Rethrow {
+    my $this = shift;
+    my ( $class, $e ) = @_;
+
+    $class = $this->_completeException( $class );
+
+    my $text;
+    unless ( Role::Tiny::does_role( $class, 'Throwable' ) ) {
+        $text  = "Cannot rethrow exception as '" . $class . "': it's not a Throwable";
+        $class = "ManulC::Exception::Fatal";
+    }
+    $class->rethrow(
+        $e,
+        ( defined $text ? ( message => $text ) : () ),
+        $this->_makeExceptionProfile,
+        @_
+    );
+}
+
+# $this->fail("Error text: ", $var, " and postfix");
+# Very simplistic ManulC::Exception::Fatal thrower, replacement for die.
+sub fail {
+    shift->Throw(Fatal => join('',@_));
+}
+
+# --- Attribute initialization methods
 sub initDEBUG {
     return !!$ManulC::Util::DEBUG;
 }
