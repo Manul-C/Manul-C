@@ -10,6 +10,7 @@ use Module::Load qw<load>;
 use Module::Loaded qw<is_loaded>;
 use Sub::Install qw<install_sub>;
 use Scalar::Util qw<looks_like_number>;
+require Package::Stash;
 
 use Exporter;
 
@@ -86,16 +87,22 @@ sub setFailSub {
 sub getNS($) {
     my ( $module ) = @_;
 
+    state %stashObjects;
+    return $stashObjects{$module} if defined $stashObjects{$module};
+
+    # Package::Stash auto-vivifys a namespace if it doesn't existist. So, we check this manually.
+    # Unfortunately, the result of the check cannot be cached as the namespace could be create any time.
     my @keys = split /::/, $module;
 
     my $ref = \%::;
-    while ( @keys ) {
+    while ( @keys && defined $ref ) {
         my $key = shift @keys;
         my $sym = "$key\:\:";
-        return undef unless defined $ref->{$sym};
+        #return undef unless defined $ref->{$sym};
         $ref = $ref->{$sym};
     }
-    return $ref;
+    return undef unless defined $ref;
+    return $stashObjects{$module} = Package::Stash->new( $module );
 }
 
 # Fetches a global symbol value by its full name; 'full' stand for sigil+namespace+name.
@@ -110,31 +117,18 @@ sub fetchGlobal {
     my $sigil = $1;
 
     my @keys   = split /::/, $fullName;
-    my $symbol = pop @keys;
+    my $symbol = $sigil . pop @keys;
     my $module = join( '::', @keys );
 
     my $ns = getNS( $module );
 
     FAIL( "Module $module not found" ) unless defined $ns;
 
-    state $sigilSub = {
-        '$' => sub { return ${ $_[0] } },
-        '%' => sub { return %{ $_[0] } },
-        '@' => sub { return @{ $_[0] } },
-        '&' => sub { return *{ $_[0] }{CODE} },
-    };
-    state $sigilKey = {
-        '$' => 'SCALAR',
-        '%' => 'HASH',
-        '@' => 'ARRAY',
-        '&' => 'CODE',
-    };
+    FAIL( "$symbol not declared in " . $ns )
+      unless $ns->has_symbol( $symbol );
 
-    FAIL( "$sigil$symbol not declared in " . $ns )
-      unless defined $ns->{$symbol}
-      && *{ $ns->{$symbol} }{ $sigilKey->{$sigil} };
-
-    return $sigilSub->{$sigil}->( $ns->{$symbol} );
+    my $symVal = $ns->get_symbol( $symbol );
+    return ($sigil eq '&' ? $symVal : eval "$sigil\{ \$symVal }");
 }
 
 # Installs a $code reference into a module $target under the $name.
@@ -142,9 +136,8 @@ sub fetchGlobal {
 sub injectCode {
     my ( $target, $name, $code ) = @_;
 
-    no warnings qw(redefine);
-    getNS( $target )->{$name} = $code;
-    use warnings qw(redefine);
+    FAIL( "Cannot inject ", ref( $code ), " as a sub into $target" ) unless ref( $code ) eq 'CODE';
+    getNS( $target )->add_symbol( "&$name", $code );
 }
 
 # Loads a module by its name. Checks if $params{method} is provided by the module.
