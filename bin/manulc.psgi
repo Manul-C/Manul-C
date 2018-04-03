@@ -32,11 +32,11 @@ sub _byBase {
 }
 
 sub byBin {
-    return _byBase($FindBin::Bin);
+    return _byBase( $FindBin::Bin );
 }
 
 sub byRealBin {
-    return _byBase($FindBin::RealBin);
+    return _byBase( $FindBin::RealBin );
 }
 
 sub findLibs {
@@ -50,7 +50,7 @@ sub findLibs {
         if ( $libDir ) {
             unshift @INC, $libDir;
             load MAIN_MODULE;
-            if (is_loaded( MAIN_MODULE )) {
+            if ( is_loaded( MAIN_MODULE ) ) {
                 say STDERR "Found module in ", $libDir, " by ", $method;
                 last ITERATE;
             }
@@ -62,4 +62,7 @@ sub findLibs {
 
 findLibs();
 
-my $app = \&ManulC::App->psgi;
+my $app = sub {
+    my $env = shift;
+    return ManulC::App->run( env => $env, engine => 'PSGI', );
+};

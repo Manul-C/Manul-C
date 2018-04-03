@@ -7,8 +7,40 @@ use ManulC::Exception;
 
 our $VERSION = 'v0.001.001';
 
-use ManulC::Class;
+use ManulC::Class qw<allTypes>;
 extends qw<ManulC::Object>;
+
+# --- Public attributes
+
+# Server environment variables. PSGI %env, for example.
+has env => (
+    is  => 'rw',
+    isa => HashRef,
+);
+
+# Class of the engine object.
+has engineClass => (
+    is      => 'ro',
+    isa     => ClassName,
+    lazy    => 1,
+    default => 'ManulC::Engine::PSGI',
+);
+
+# Engine object.
+has engine => (
+    is      => 'ro',
+    isa     => InstanceOf ['ManulC::Engine'],
+    lazy    => 1,
+    builder => 'initEngine',
+);
+
+# HTTP request
+has req => (
+    is      => 'ro',
+    isa     => InstanceOf ['ManulC::Request'],
+    lazy    => 1,
+    builder => 'initReq',
+);
 
 # --- Public methods
 
@@ -34,6 +66,34 @@ around create => sub {
 
     return $orig->( $this, $class, @profile, @_ );
 };
+
+sub run {
+    my %profile = @_;
+
+    if ( exists $profile{engine} ) {
+        $profile{engineClass} //= 'ManulC::Engine::' . $profile{engine}
+          if defined $profile{engine};
+        delete $profile{engine};
+    }
+
+    my $app = __PACKAGE__->new( %profile );
+
+    return $app->handleRequest;
+}
+
+# --- Attribute initializers
+
+sub initEngine {
+    my $this = shift;
+    
+    return $this->create($this->engineClass);
+}
+
+sub initReq {
+    my $this = shift;
+    
+    return $this->engine->prepareRequest;
+}
 
 1;
 
