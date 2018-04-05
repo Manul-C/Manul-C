@@ -58,7 +58,7 @@ sub BUILD {
 
     warn __PACKAGE__ . " must not be used directly to create exceptions."
       if ref( $this ) eq __PACKAGE__;
-      
+
     warn ref( $this ) . " must consume either " . __PACKAGE__ . "::Mortal or " . __PACKAGE__ . "::Harmless roles"
       unless $this->does( __PACKAGE__ . '::Mortal' ) || $this->does( __PACKAGE__ . '::Harmless' );
 }
@@ -175,7 +175,7 @@ sub rethrow {
         $exception->throw;
     }
 
-    my $class    = ref( $exception ) || $exception;
+    my $class = ref( $exception ) || $exception;
     my $srcExcpt = shift;
 
     my $newExcpt = $class->transmute( $srcExcpt, 0, @_ );

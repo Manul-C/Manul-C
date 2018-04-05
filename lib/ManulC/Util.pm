@@ -130,7 +130,7 @@ sub fetchGlobal {
       unless $ns->has_symbol( $symbol );
 
     my $symVal = $ns->get_symbol( $symbol );
-    return ($sigil eq '&' ? $symVal : eval "$sigil\{ \$symVal }");
+    return ( $sigil eq '&' ? $symVal : eval "$sigil\{ \$symVal }" );
 }
 
 # Installs a $code reference into a module $target under the $name.

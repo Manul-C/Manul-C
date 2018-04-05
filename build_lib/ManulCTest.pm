@@ -15,7 +15,7 @@ require Syntax::Keyword::Try;
 sub import {
     my $class  = shift;
     my $target = caller;
-    
+
     $SIG{__DIE__} = sub { confess @_ };
 
     require feature;

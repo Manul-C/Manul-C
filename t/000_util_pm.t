@@ -42,9 +42,9 @@ catch {
 package __MCT::NSManip {
     our $v1 = 3.1415926;
     my $v2 = "no access";
-    
+
     sub preExists {
-        return $v1/2;
+        return $v1 / 2;
     }
 }
 
@@ -69,7 +69,7 @@ my $__inj = fetchGlobal( '&__MCT::NSManip::__injected' );
 is( ref( $__inj ), 'CODE', 'fetchglobal() returns code ref for & sigil' );
 is( $__inj->(), $__MCT::NSManip::v1 * 2, "fetchGlobal() returns correct code ref for injected sub" );
 
-my $code = fetchGlobal("&__MCT::NSManip::preExists");
-is($code->(), $__MCT::NSManip::v1/2, "fetchGloval() returns correct code ref for static sub");
+my $code = fetchGlobal( "&__MCT::NSManip::preExists" );
+is( $code->(), $__MCT::NSManip::v1 / 2, "fetchGloval() returns correct code ref for static sub" );
 
 done_testing;

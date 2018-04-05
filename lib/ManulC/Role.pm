@@ -5,7 +5,7 @@ package ManulC::Role;
 require ManulC::Class;
 
 our $VERSION = 'v0.001.001';
-our @ISA = qw<ManulC::Class>;
+our @ISA     = qw<ManulC::Class>;
 
 sub import {
     push @_, '-role';

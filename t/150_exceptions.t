@@ -5,8 +5,9 @@ use ManulCTest;
 require ManulC::Exception;
 
 try {
-    ManulC::Exception->throw(message => "anything");
-}catch {
+    ManulC::Exception->throw( message => "anything" );
+}
+catch {
     say STDERR $@;
 }
 

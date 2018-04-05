@@ -8,8 +8,8 @@ our $VERSION = 'v0.001.001';
 
 # Excpected to be a string defining exception severity. Most likely values are 'mortal' and 'harmless'.
 has severity => (
-    is => 'ro',
-    lazy => 1,
+    is      => 'ro',
+    lazy    => 1,
     builder => 'initSeverity',
 );
 

@@ -8,7 +8,7 @@ extends qw<ManulC::Object>;
 our $VERSION = 'v0.001.001';
 
 sub prepareRequest {
-    shift->fail("prepareRequest() method is abstract, override it in a child");
+    shift->fail( "prepareRequest() method is abstract, override it in a child" );
 }
 
 1;

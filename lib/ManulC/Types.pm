@@ -12,7 +12,7 @@ BEGIN { extends "Types::Standard"; }
 
 our $VERSION = 'v0.001.001';
 
-declare AllOf, 
+declare AllOf,
   where { 1 },
   constraint_generator => sub {
     my @cParams = @_;

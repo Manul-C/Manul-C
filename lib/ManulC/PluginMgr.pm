@@ -63,16 +63,16 @@ sub loadPlugins {
     setmoduledirs( @{ $this->pluginDirs } );
     my @plugModules = findallmod $this->namePrefix;
     setmoduledirs( undef );
-    
-    foreach my $plugMod (@plugModules) {
-        loadModule($plugMod);
+
+    foreach my $plugMod ( @plugModules ) {
+        loadModule( $plugMod );
     }
 }
 
 # --- Static methods
 sub registerPlugin {
-    my ($plugName, %params) = @_;
-    
+    my ( $plugName, %params ) = @_;
+
     # XXX TODO Make a copy of %params in first place!
     $registeredPlugins{$plugName} = \%params;
 }
@@ -87,12 +87,12 @@ sub initPluginDirs {
     my $this = shift;
 
     my $plugDirs = $this->app->env->{MANULC_PLUGDIRS} // $this->app->env->{MANULC_LIBS};
-    unless ($plugDirs) {
+    unless ( $plugDirs ) {
         my $modDir = module_path( __PACKAGE__ ) // $INC{'ManulC/App.pm'};
-        my ($vol, $path) = File::Spec->splitpath($modDir);
-        my @dirs = File::Spec->splitdir(File::Spec->canonpath($path));
-        pop @dirs; # Remove ManulC part
-        $plugDirs = File::Spec->catpath($vol, File::Spec->catdir(@dirs),undef);
+        my ( $vol, $path ) = File::Spec->splitpath( $modDir );
+        my @dirs = File::Spec->splitdir( File::Spec->canonpath( $path ) );
+        pop @dirs;    # Remove ManulC part
+        $plugDirs = File::Spec->catpath( $vol, File::Spec->catdir( @dirs ), undef );
     }
 
     my @dirList = split /:/, $plugDirs;

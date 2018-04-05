@@ -106,6 +106,7 @@ catch {
 
 # --- Test for bad parameters
 try {
+
     package __MCT::ToFewParam {
         use ManulC::Class;
         extends qw<ManulC::Object>;
@@ -116,8 +117,8 @@ try {
             isa => AllOf [],
         );
     };
-    
-    fail("AllOf[`a] with 0 paramters erroneously passed");
+
+    fail( "AllOf[`a] with 0 paramters erroneously passed" );
 }
 catch {
     like(
@@ -128,6 +129,7 @@ catch {
 }
 
 try {
+
     package __MCT::BadParam {
         use ManulC::Class;
         extends qw<ManulC::Object>;
@@ -135,11 +137,11 @@ try {
 
         has attr => (
             is => 'rw',
-            isa => AllOf [InstanceOf['Moo::Object'], Int],
+            isa => AllOf [ InstanceOf ['Moo::Object'], Int ],
         );
     };
-    
-    fail("AllOf[`a] with Int paramter erroneously passed");
+
+    fail( "AllOf[`a] with Int paramter erroneously passed" );
 }
 catch {
     like(
