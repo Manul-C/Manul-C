@@ -1,0 +1,3 @@
+[submodule "plugins/EmptyPlugin"]
+	path = plugins/EmptyPlugin
+	url = git@github.com:Manul-C/EmptyPlugin.git
