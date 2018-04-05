@@ -8,7 +8,7 @@ our $VERSION = 'v0.001.001';
 our @ISA = qw<ManulC::Class>;
 
 sub import {
-    splice( @_, 1, 0, '-role' );
+    push @_, '-role';
     goto &ManulC::Class::import;
 }
 

@@ -2,20 +2,22 @@
 
 package ManulC::App;
 
-use ManulC::Util qw<:namespace>;
+use ManulC::Util qw<:namespace :errors>;
 use ManulC::Exception;
 
 our $VERSION = 'v0.001.001';
 
-use ManulC::Class qw<allTypes>;
+use ManulC::Class -allTypes;
 extends qw<ManulC::Object>;
 
 # --- Public attributes
 
 # Server environment variables. PSGI %env, for example.
 has env => (
-    is  => 'rw',
-    isa => HashRef,
+    is      => 'rw',
+    isa     => HashRef,
+    lazy    => 1,
+    builder => 'initEnv',
 );
 
 # Class of the engine object.
@@ -42,6 +44,16 @@ has req => (
     builder => 'initReq',
 );
 
+# Plugin manager
+has pluginMgr => (
+    is        => 'ro',
+    lazy      => 1,
+    clearer   => 1,
+    predicate => 1,
+    isa       => InstanceOf ['ManulC::PluginMgr'],
+    builder   => 'initPluginMgr',
+);
+
 # --- Public methods
 
 sub BUILD {
@@ -57,6 +69,8 @@ around create => sub {
     my $orig  = shift;
     my $this  = shift;
     my $class = shift;
+
+    $class = $this->_preValidateClass( $class );
 
     my @profile;
 
@@ -83,16 +97,32 @@ sub run {
 
 # --- Attribute initializers
 
+sub initEnv {
+    my $this = shift;
+
+    if ( $this->TEST ) {
+        return \%ENV;
+    }
+    else {
+        FAIL( "Application attribute env must be pre-initialized prior use!" );
+    }
+}
+
 sub initEngine {
     my $this = shift;
-    
-    return $this->create($this->engineClass);
+
+    return $this->create( $this->engineClass );
 }
 
 sub initReq {
     my $this = shift;
-    
+
     return $this->engine->prepareRequest;
+}
+
+sub initPluginMgr {
+    my $this = shift;
+    return $this->create( 'ManulC::PluginMgr' );
 }
 
 1;

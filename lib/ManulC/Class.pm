@@ -16,7 +16,7 @@ require Syntax::Keyword::Try;
 require MooX::TypeTiny;
 
 use Module::Load qw<load load_remote>;
-use ManulC::Util;
+use ManulC::Util qw<:namespace>;
 
 use constant DEFAULT_BASEVERSION => '5.24';
 
@@ -25,15 +25,9 @@ our %_classInfo;
 
 # Module parameters and their properties
 my %paramSet = (
-    '-role'  => {},
-    allTypes => {},
-    #application    => { roles => [qw<Optrade::Role::App>], },
-    #dbiTransparent => { roles => [qw<Optrade::Role::DBI::Transparent>], },
-    #dbiBase        => { roles => [qw<Optrade::Role::DBI::Base>], },
-    #dbiRWMode      => { roles => [qw<Optrade::Role::DBI::RWMode>], },
-    #dbiConfig      => { roles => [qw<Optrade::Role::DBI::Config>], },
-    #logging        => { roles => [qw<Optrade::Role::Logging>], },
-    #tuner          => { roles => [qw<Optrade::Role::Tuner>], },
+    '-role'     => { handler => \&_param_role, },
+    '-allTypes' => {},
+    '-plugin'   => { roles => [qw<ManulC::Role::Plugin>], },
 );
 
 # **BEGIN Install wrappers for Moo's has/with/extends to record basic object
@@ -96,13 +90,7 @@ sub import {
     my $class  = shift;
     my $target = caller;
 
-    # -role param can only be the first in the list.
-    my $isRole = defined $_[0] && $_[0] eq '-role';
-    shift if $isRole;    # Remove -role from the arguments list.
-
-    my $baseMod = $isRole ? 'Moo::Role' : 'Moo';
-    $_classInfo{$target}{isRole}  = 1;
-    $_classInfo{$target}{baseMod} = $baseMod;
+    $_classInfo{$target}{baseMod} = 'Moo';    # The target is a class by default.
 
     my $featureSet = ':' . DEFAULT_BASEVERSION;
     my ( @passOnParams, @myParams );
@@ -123,7 +111,17 @@ sub import {
     }
 
     foreach my $param ( @myParams ) {
-        if ( my $installer = __PACKAGE__->can( "_install_$param" ) ) {
+        ( my $paramName = $param ) =~ s/^-//;
+
+        if ( $paramSet{$param}{roles} ) {
+            _assign_roles( $target, @{ $paramSet{$param}{roles} } );
+        }
+
+        if ( $paramSet{$param}{handler} ) {
+            $paramSet{$param}{handler}->( $class, $target );
+        }
+
+        if ( my $installer = __PACKAGE__->can( "_install_$paramName" ) ) {
             $installer->( $class, $target );
         }
     }
@@ -140,12 +138,12 @@ sub import {
 
     # class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
     ManulC::Util::injectCode(
-        $target, ( $isRole ? "roleInit" : "classInit" ),
+        $target, ( $_classInfo{$target}{isRole} ? "roleInit" : "classInit" ),
         sub { _modInit( $target ) }
     );
 
+    my $baseMod = $_classInfo{$target}{baseMod};
     @_ = ( $baseMod, @passOnParams );
-
     goto \&{"${baseMod}::import"};
 }
 
@@ -153,8 +151,23 @@ sub import {
 sub _modInit {
     my $target = shift;
 
+    _apply_roles();
 }
 
+sub _param_role {
+    my ( $class, $target ) = @_;
+
+    $_classInfo{$target}{isRole}  = 1;
+    $_classInfo{$target}{baseMod} = 'Moo::Role';
+}
+
+# Records the roles to be assigned to the target class.
+sub _assign_roles {
+    my $class = shift;
+    push @{ $_classInfo{$class}{assignedRoles} }, @_;
+}
+
+# Applies earlier recorded roles to the class.
 sub _apply_roles {
     my @targets = grep { defined $_classInfo{$_}{assignedRoles} } ( scalar( @_ ) ? @_ : keys %_classInfo );
 
@@ -162,7 +175,7 @@ sub _apply_roles {
         my @classRoles = @{ $_classInfo{$target}{assignedRoles} };
 
         # Preload modules. This must reveal any possible syntax errors.
-        load_package( $_ ) foreach @classRoles;
+        loadModule( $_ ) foreach @classRoles;
 
         push @{ $_classInfo{$target}{WITH} }, @classRoles;
 
@@ -250,6 +263,22 @@ sub _install_allTypes {
     my ( $class, $target ) = @_;
     #say STDERR "Installing all types into $target";
     load_remote( $target, "ManulC::Types", qw<-all> );
+}
+
+# --- Plugins support
+
+# Implementation of 'plugin' sugar
+sub _handle_plugin (%) {
+    my ( @params ) = @_;
+    my $plugModule = caller;
+    require ManulC::PluginMgr;
+    ManulC::PluginMgr::registerPlugin( $plugModule, @params );
+}
+
+sub _install_plugin {
+    my ( $class, $target ) = @_;
+
+    injectCode( $target, 'plugin', \&_handle_plugin );
 }
 
 1;

@@ -5,7 +5,7 @@ package ManulC::Exception;
 use Scalar::Util qw<blessed>;
 use Module::Find;
 
-use ManulC::Class;
+use ManulC::Class -allTypes;
 extends qw<ManulC::Object>;
 with 'Throwable';
 
@@ -175,7 +175,7 @@ sub rethrow {
         $exception->throw;
     }
 
-    my $class    = ref( $exception ) // $exception;
+    my $class    = ref( $exception ) || $exception;
     my $srcExcpt = shift;
 
     my $newExcpt = $class->transmute( $srcExcpt, 0, @_ );

@@ -9,7 +9,7 @@ use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 
 use ManulC::Util qw<:execControl :data :namespace>;
 
-use ManulC::Class qw<allTypes>;
+use ManulC::Class -allTypes;
 classInit;
 
 our $VERSION = 'v0.001.001';
@@ -100,13 +100,22 @@ sub BUILD {
 }
 
 # Create a new object.
+sub _preValidateClass {
+    my $this = shift;
+    my ( $class ) = @_;
+
+    $class = ref( $class ) || $class;
+
+    loadClass( $class );
+
+    return $class;
+}
+
 sub create {
     my $this  = shift;
     my $class = shift;
 
-    $class = ref( $class ) // $class;
-
-    loadClass( $class );
+    $class = $this->_preValidateClass( $class );
 
     # Note that application itself will always have app attribute set to undef.
     if ( $this->has_app && defined $this->app ) {
@@ -226,7 +235,7 @@ sub Rethrow {
 # $this->fail("Error text: ", $var, " and postfix");
 # Very simplistic ManulC::Exception::Fatal thrower, replacement for die.
 sub fail {
-    shift->Throw(Fatal => join('',@_));
+    shift->Throw( Fatal => join( '', @_ ) );
 }
 
 # --- Attribute initialization methods

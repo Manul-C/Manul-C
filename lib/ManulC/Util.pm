@@ -10,6 +10,7 @@ use Module::Load qw<load>;
 use Module::Loaded qw<is_loaded>;
 use Sub::Install qw<install_sub>;
 use Scalar::Util qw<looks_like_number>;
+use Sub::Quote;
 require Package::Stash;
 
 use Exporter;
@@ -23,7 +24,8 @@ our %EXPORT_TAGS = (
     namespace => [
         qw<
           injectCode getNS fetchGlobal loadModule loadClass
-          hasRegisteredClass getAllAttrs hasAttribute
+          hasRegisteredClass getClassAttributes hasAttribute
+          object2class
           >
     ],
     execControl => [qw<$DEBUG>],
@@ -140,6 +142,9 @@ sub injectCode {
     getNS( $target )->add_symbol( "&$name", $code );
 }
 
+# Makes flat-string class name from its parameter
+quote_sub 'ManulC::Util::object2class', q{ return ref($_[0]) || $_[0]; };
+
 # Loads a module by its name. Checks if $params{method} is provided by the module.
 sub loadModule {
     my $module = shift;
@@ -196,7 +201,7 @@ sub is_true {
 sub getClassAttributes {
     my $class = shift;
     $class = ref( $class ) // $class;
-    return Optrade::Class::getAllAttrs( $class );
+    return ManulC::Class::getAllAttrs( $class );
 }
 
 # Returns true if $attr is defined in $class
@@ -207,7 +212,7 @@ sub hasAttribute {
 
     $class = ref( $class ) if ref( $class );
 
-    return defined Optrade::Class::getClassAttrs( $class )->{$attr};
+    return defined ManulC::Class::getClassAttrs( $class )->{$attr};
 }
 
 1;

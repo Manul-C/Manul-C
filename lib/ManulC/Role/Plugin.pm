@@ -1,33 +1,12 @@
 #
 
-package ManulCTest;
+package ManulC::Role::Plugin;
 
-# Test functionality wrapper module
+use ManulC::Role;
 
 our $VERSION = 'v0.001.001';
-our $TESTING = !!1;
 
-use Module::Load qw<load_remote>;
-use Carp;
-require Test2::V0;
-require Syntax::Keyword::Try;
-
-sub import {
-    my $class  = shift;
-    my $target = caller;
-    
-    $SIG{__DIE__} = sub { confess @_ };
-
-    require feature;
-    feature->import( ':5.24' );
-
-    Syntax::Keyword::Try->import_into( $target );
-
-    $ENV{MANULC_TESTING} //= $TESTING;
-
-    unshift @_, 'Test2::V0';
-    goto &Test2::V0::import;
-}
+# --- Public attributes
 
 1;
 
