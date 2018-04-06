@@ -1,6 +1,3 @@
-[submodule "plugins/EmptyPlugin"]
-	path = plugins/EmptyPlugin
-	url = git@github.com:Manul-C/EmptyPlugin.git
 [submodule "contrib/ManulCBuild"]
 	path = contrib/ManulCBuild
 	url = git@github.com:Manul-C/ManulCBuild.git
