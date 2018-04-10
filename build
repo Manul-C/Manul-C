@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use File::Spec;
+
+my $build_lib;
+
+BEGIN {
+    $build_lib = File::Spec->catdir( $ENV{MANULC_SRC} || '.', 'build_lib' );
+}
+
+use lib $build_lib;
+
+use Dist::Zilla::App;
+# Let dzil --version know what to report:
+$main::VERSION = $Dist::Zilla::App::VERSION;
+
+# PODNAME:  dzil
+# ABSTRACT: do stuff with your dist
+Dist::Zilla::App->run;
+
+exit;
