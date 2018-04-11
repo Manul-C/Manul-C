@@ -1,11 +1,12 @@
 #
 # ABSTRACT: Manul•C installation of a contrib/extension into the core development directory by symlinking.
 use v5.24;
+use utf8;
 
 package Dist::Zilla::App::Command::mc_linkinstall 0.001;
 use Data::Dumper;
-#use Syntax::Keyword::Try;
-use File::Spec;
+use Syntax::Keyword::Try;
+use Path::Tiny;
 
 #our $VERSION = 'v0.001.001';
 
@@ -22,15 +23,100 @@ sub abstract { 'Manul•C symlinked installation of contribs & plugins' }
 #}
 
 sub opt_spec {
-    #[ 'symlink!', 'Install submodules by symlinking', { default => !!1 } ],
-    #['plugin=s@', 'Specifiy plugins to install'],
+    [ 'destination|d=s', 'Manul•C distribution root directory', ],
+      #[ 'symlink!', 'Install submodules by symlinking', { default => !!1 } ],
+      #['plugin=s@', 'Specifiy plugins to install'],
+}
+
+sub link_to_dest {
+    my $this   = shift;
+    my %params = @_;
+
+    if ( !opendir my $dh, $params{from} ) {
+        die "Cannot read from directory $params{from}: " . $!;
+    }
+
+    try {
+        foreach my $entry ( readdir $dh ) {
+            next if $entry =~ /^\.\.?$/n;
+            my $fromPath = path( $params{from} . "/$entry" );
+            my $destPath = path( $params{to} . "/$entry" );
+            if ( -e $destPath ) {
+                if ( -l $destPath ) {
+                    my $linkVal = readlink $destPath;
+                    die "Cannot read symlink " . $destPath . ": " . $! unless defined $linkVal;
+                    $linkVal  = path( $linkVal )->absolute;
+                    $fromPath = path($fromPath )->absolute;
+                    die "Destination link doesn't point back to the source: " . $linkVal . " != " . $fromPath
+                      if $linkVal != $fromPath;
+                }
+                elsif ( -d $destPath ) {
+                    if ( -f $fromPath ) {
+                        die "Entries mismatch: destination "
+                          . $destPath
+                          . " is a directory while source "
+                          . $fromPath
+                          . " is a plain file";
+                    }
+                    $this->link_to_dest(
+                        from     => $fromPath,
+                        to       => $destPath,
+                        packlist => $params{packlist},
+                    );
+                }
+                elsif ( -f $destPath && -d $fromPath ) {
+                    die "Entries mismatch: destination "
+                      . $destPath
+                      . " is a plain file while source "
+                      . $fromPath
+                      . " is a directory";
+                }
+            }
+            else {
+                $this->log( "$fromPath => $destPath" );
+                if ( !symlink $fromPath, $destPath ) {
+                    die "Failed to link $fromPath to $destPath: $!";
+                }
+            }
+        }
+    }
+    catch {
+        # Rethrow exception.
+        die $@;
+    }
+    finally {
+        closedir $dh;
+    }
 }
 
 sub execute {
-    my ( $self, $opt, $arg ) = @_;
+    my ( $this, $opt, $arg ) = @_;
 
-    my $zill  = $self->zilla;
-    my $root  = File::Spec->rel2abs( $zill->root );
+    my $zill   = $this->zilla;
+    my $root   = $zill->root->absolute;
+
+    # Check if symlinks are supported on this system
+    try {
+        # Would die if no symlinking on this system.
+        symlink( "", "" );
+    }
+    catch {
+        die "linkinstall won't work on ", $^O, ": no symlinking support";
+    }
+
+    my $destBase = $opt->destination || $ENV{MANULC_SRC};
+
+    die "linkinstall requires MANULC_SRC environment variable or --destination to be set" unless $destBase;
+
+    foreach my $entry ( qw<lib static store> ) {
+        my $fromPath = path( $root . "/$entry" );
+        next unless -d $fromPath;
+        my $destPath = path( $destBase . "/$entry" );
+        $this->link_to_dest(
+            from => $fromPath,
+            to   => $destPath,
+        );
+    }
 }
 
 1;

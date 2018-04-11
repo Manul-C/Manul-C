@@ -9,3 +9,6 @@
 
 # Dizt::Zilla
 /.build/
+
+/lib/ManulC/Contrib/*
+/lib/ManulC/Plugin/*

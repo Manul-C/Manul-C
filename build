@@ -12,8 +12,8 @@ BEGIN {
 use lib $build_lib;
 
 use Dist::Zilla::App;
-# Let dzil --version know what to report:
-$main::VERSION = $Dist::Zilla::App::VERSION;
+# Let build --version know what to report:
+our $VERSION = 'v0.001.001';
 
 # PODNAME:  dzil
 # ABSTRACT: do stuff with your dist

@@ -1,11 +1,12 @@
 #
-use strict;
-use warnings;
+use v5.24;
+use utf8;
 
 package Dist::Zilla::App::Command::mc_develinstall 0.001;
 use Data::Dumper;
 use Syntax::Keyword::Try;
 use Path::Tiny;
+use Cwd;
 require Git::Wrapper;
 
 # ABSTRACT: Manul•C developer installation – install all contribs&plugins as symlinks in the development directory.
@@ -27,11 +28,33 @@ sub opt_spec {
     #['plugin=s@', 'Specifiy plugins to install'],
 }
 
-sub execute {
-    my ( $self, $opt, $arg ) = @_;
+sub runBuild {
+    my $this       = shift;
+    my ( $subDir ) = @_;
+    my $cwd        = cwd;
+    try {
+        chdir $subDir or die "Can't chdir to $subDir: " . $!;
+        my $buildCmd = "./build";
+        $this->zilla->log_debug( "WARNING: $buildCmd is not executable." ) unless -e $buildCmd && -x $buildCmd;
+        $buildCmd = "dzil" unless -x $buildCmd;
+        my $cmd = "$buildCmd mc-linkinstall";
+        system( $cmd );
+        die "'$cmd' failed with rc=" . $? if $? != 0;
+    }
+    catch {
+        die $@;
+    }
+    finally {
+        chdir $cwd;
+    }
+}
 
-    my $zill   = $self->zilla;
-    my $root   = path( $zill->root )->absolute;
+sub execute {
+    my $this = shift;
+    my ( $opt, $arg ) = @_;
+
+    my $zilla  = $this->zilla;
+    my $root   = path( $zilla->root )->absolute;
     my @mcLibs = (
         path( $root . '/lib' ),
         path( $root . '/build_lib' ),
@@ -51,38 +74,33 @@ sub execute {
 
     # Autocreate missing directories.
     foreach my $adir ( @autoCreateDirs ) {
-        path( $root . "/$adir" )->mkpath( { mode => 0770 } );
+        my $subdir = path( $root . "/$adir" );
+        unless ( -d $subdir ) {
+            $this->log( "Creating missing $adir" );
+            $subdir->mkpath( { mode => 0770 } );
+        }
     }
 
+    $this->log( "Preparing Manul•C Build contrib." );
     my $buildContribDir = path( $root . "/contrib/ManulCBuild" );
-    chdir $buildContribDir or die "Cannot chdir to $buildContribDir: $!";
-
-    try {
-        system( "dzil mc-linkinstall" );
-        die "mc-linkinstall failed for Build contrib" if $? != 0;
-    }
-    catch {
-        chdir $root;
-        die $@;
-    }
+    $this->runBuild( $buildContribDir );
 
     my $git = Git::Wrapper->new( $root );
     try {
-        my @shCmd;
-        #my @shCmd = $opt->symlink ? ( "MANULC_USE_SYMLINKS=1" ) : ();
-        push @shCmd, (
-            "dzil mc-linkinstall",
-            #'dzil build --in .MCdistro',
-            #'cd .MCdistro',
-            #"perl Build.PL",
-            #"./Build develinstall",
-            #"cd ..",
-            #"rm -rf .MCdistro",
-        );
-        say STDERR join( "\n", $git->submodule( foreach => join( " && ", @shCmd ) ) );
+        my @submodList = grep { $_ !~ m[contrib/ManulCBuild] } map { ( split " " )[1] } $git->submodule;
+        foreach my $submod ( @submodList ) {
+            $this->log( "Installing $submod" );
+            my $smDir = path( $root . "/$submod" );
+            $this->runBuild( $smDir );
+        }
     }
     catch {
-        say STDERR "Git failed [rc=", $@->status, "]: ", $@->error;
+        if ( $@->isa( "Git::Wrapper::Exception" ) ) {
+            $zilla->log_fatal( "Git failed [rc=" . $@->status . "]: " . $@->error );
+        }
+        else {
+            $zilla->log_fatal( $@ );
+        }
     }
 }
 
