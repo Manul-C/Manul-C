@@ -9,7 +9,7 @@ use Path::Tiny;
 use Cwd;
 require Git::Wrapper;
 
-# ABSTRACT: Manul•C developer installation – install all contribs&plugins as symlinks in the development directory.
+# ABSTRACT: Manul•C developer installation – install all contribs&extensions as symlinks in the development directory.
 
 use Dist::Zilla::App -command;
 
@@ -25,7 +25,6 @@ sub abstract { 'Manul•C developer installation' }
 
 sub opt_spec {
     #[ 'symlink!', 'Install submodules by symlinking', { default => !!1 } ],
-    #['plugin=s@', 'Specifiy plugins to install'],
 }
 
 sub runBuild {
@@ -60,7 +59,7 @@ sub execute {
         path( $root . '/build_lib' ),
     );
 
-    my @autoCreateDirs = qw<lib/ManulC/Plugin lib/ManulC/Contrib>;
+    my @autoCreateDirs = qw<lib/ManulC/Ext>;
 
     # Prepare environment variables for subprocesses
     $ENV{MANULC_SRC} = $root;

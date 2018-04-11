@@ -27,7 +27,7 @@ our %_classInfo;
 my %paramSet = (
     '-role'     => { handler => \&_param_role, },
     '-allTypes' => {},
-    '-plugin'   => { roles => [qw<ManulC::Role::Plugin>], },
+    '-extension'   => { roles => [qw<ManulC::Role::Extension>], },
 );
 
 # **BEGIN Install wrappers for Moo's has/with/extends to record basic object
@@ -265,20 +265,20 @@ sub _install_allTypes {
     load_remote( $target, "ManulC::Types", qw<-all> );
 }
 
-# --- Plugins support
+# --- Extensions support
 
-# Implementation of 'plugin' sugar
-sub _handle_plugin (%) {
+# Implementation of 'extension' sugar
+sub _handle_extension (%) {
     my ( @params ) = @_;
-    my $plugModule = caller;
-    require ManulC::PluginMgr;
-    ManulC::PluginMgr::registerPlugin( $plugModule, @params );
+    my $extModule = caller;
+    require ManulC::ExtMgr;
+    ManulC::ExtMgr::registerExt( $extModule, @params );
 }
 
-sub _install_plugin {
+sub _install_extension {
     my ( $class, $target ) = @_;
 
-    injectCode( $target, 'plugin', \&_handle_plugin );
+    injectCode( $target, 'extension', \&_handle_extension );
 }
 
 1;

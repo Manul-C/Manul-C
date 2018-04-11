@@ -1,6 +1,6 @@
 #
 
-package ManulC::PluginMgr;
+package ManulC::ExtMgr;
 use v5.24;
 
 use Module::Find;
@@ -13,31 +13,31 @@ extends qw<ManulC::Object>;
 # --- Static variables
 our $VERSION = 'v0.001.001';
 
-my %registeredPlugins;    # Hash of registered plugins; maps a plugin name into its options.
+my %registeredExtensions;    # Hash of registered extensions; maps a extension name into its options.
 
 # --- Public attributes
 
-# Map of full plugin names into respecive objects.
-has plugins => (
+# Map of full extension names into respecive objects.
+has extensions => (
     is      => 'rw',
     lazy    => 1,
     clearer => 1,
-    builder => 'initPlugins',
+    builder => 'initExtensions',
 );
 
 has namePrefix => (
     is      => 'rwp',
     coerce  => sub { $_[0] =~ m/^(.*?)(?:\::)?$/; $1 },
-    default => 'ManulC::Plugin',
+    default => 'ManulC::Extension',
 );
 
-# List of directories to look for plugins in.
-has pluginDirs => (
+# List of directories to look for extensions in.
+has extDirs => (
     is      => 'rw',
     isa     => ArrayRef [Str],
     lazy    => 1,
     clearer => 1,
-    builder => 'initPluginDirs',
+    builder => 'initExtDirs',
 );
 
 # --- Public methods
@@ -45,10 +45,10 @@ has pluginDirs => (
 sub BUILD {
     my $this = shift;
 
-    $this->loadPlugins;
+    $this->loadExtensions;
 }
 
-sub normalizePlugName {
+sub normalizeExtName {
     my $this = shift;
     my ( $name, %params ) = @_;
 
@@ -57,45 +57,45 @@ sub normalizePlugName {
     return $name =~ /^$prefix/ ? $name : "${prefix}::${name}";
 }
 
-sub loadPlugins {
+sub loadExtensions {
     my $this = shift;
 
-    setmoduledirs( @{ $this->pluginDirs } );
-    my @plugModules = findallmod $this->namePrefix;
+    setmoduledirs( @{ $this->extDirs } );
+    my @extModules = findallmod $this->namePrefix;
     setmoduledirs( undef );
 
-    foreach my $plugMod ( @plugModules ) {
-        loadModule( $plugMod );
+    foreach my $extMod ( @extModules ) {
+        loadModule( $extMod );
     }
 }
 
 # --- Static methods
-sub registerPlugin {
-    my ( $plugName, %params ) = @_;
+sub registerExtension {
+    my ( $extName, %params ) = @_;
 
     # XXX TODO Make a copy of %params in first place!
-    $registeredPlugins{$plugName} = \%params;
+    $registeredExtensions{$extName} = \%params;
 }
 
 # --- Attribute initializers
 
-sub initPlugins {
+sub initExtensions {
     my $this = shift;
 }
 
-sub initPluginDirs {
+sub initExtDirs {
     my $this = shift;
 
-    my $plugDirs = $this->app->env->{MANULC_PLUGDIRS} // $this->app->env->{MANULC_LIBS};
-    unless ( $plugDirs ) {
+    my $extDirs = $this->app->env->{MANULC_PLUGDIRS} // $this->app->env->{MANULC_LIBS};
+    unless ( $extDirs ) {
         my $modDir = module_path( __PACKAGE__ ) // $INC{'ManulC/App.pm'};
         my ( $vol, $path ) = File::Spec->splitpath( $modDir );
         my @dirs = File::Spec->splitdir( File::Spec->canonpath( $path ) );
         pop @dirs;    # Remove ManulC part
-        $plugDirs = File::Spec->catpath( $vol, File::Spec->catdir( @dirs ), undef );
+        $extDirs = File::Spec->catpath( $vol, File::Spec->catdir( @dirs ), undef );
     }
 
-    my @dirList = split /:/, $plugDirs;
+    my @dirList = split /:/, $extDirs;
     # Record all directories from @INC in a hash to test against and avoid duplicate entries.
     my %incDirs = map { File::Spec->rel2abs( $_ ) => 1 } @INC;
 

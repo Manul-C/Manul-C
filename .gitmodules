@@ -1,5 +1,5 @@
-[submodule "contrib/ManulCBuild"]
-	path = contrib/ManulCBuild
+[submodule "extensions/ManulCBuild"]
+	path = extensions/ManulCBuild
 	url = git@github.com:Manul-C/ManulCBuild.git
 [submodule "extensions/EmptyPlugin"]
 	path = extensions/EmptyPlugin

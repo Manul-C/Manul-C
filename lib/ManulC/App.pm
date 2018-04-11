@@ -44,14 +44,14 @@ has req => (
     builder => 'initReq',
 );
 
-# Plugin manager
-has pluginMgr => (
+# Extension manager
+has extMgr => (
     is        => 'ro',
     lazy      => 1,
     clearer   => 1,
     predicate => 1,
-    isa       => InstanceOf ['ManulC::PluginMgr'],
-    builder   => 'initPluginMgr',
+    isa       => InstanceOf ['ManulC::ExtMgr'],
+    builder   => 'initExtMgr',
 );
 
 # --- Public methods
@@ -120,9 +120,9 @@ sub initReq {
     return $this->engine->prepareRequest;
 }
 
-sub initPluginMgr {
+sub initExtMgr {
     my $this = shift;
-    return $this->create( 'ManulC::PluginMgr' );
+    return $this->create( 'ManulC::ExtMgr' );
 }
 
 1;

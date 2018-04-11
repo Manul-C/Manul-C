@@ -1,6 +1,6 @@
 #
 
-package ManulC::Role::Plugin;
+package ManulC::Role::Extension;
 
 use ManulC::Role;
 

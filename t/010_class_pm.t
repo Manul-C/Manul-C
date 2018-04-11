@@ -37,13 +37,13 @@ my $o = __MCT::ClassWithRole->new;
 ok( $o->does( '__MCT::Role' ), 'object consumes role' );
 is( $o->roleAttr, '__MCT::Role', 'role applied correctly' );
 
-package __MCT::Plugin::Test {
-    use ManulC::Class -plugin;
+package __MCT::Ext::Test {
+    use ManulC::Class -extension;
     extends qw<ManulC::Object>;
 }
 
-$o = __MCT::Plugin::Test->new;
-ok( $o->does( "ManulC::Role::Plugin" ), "valid plugin object is created" );
+$o = __MCT::Ext::Test->new;
+ok( $o->does( "ManulC::Role::Ext" ), "valid extension object is created" );
 
 package __MCT::TypedAttr {
     use ManulC::Class -allTypes;

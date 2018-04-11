@@ -14,7 +14,7 @@ use Dist::Zilla::App -command;
 
 sub command_names { qw(mc-linkinstall) }
 
-sub abstract { 'Manul•C symlinked installation of contribs & plugins' }
+sub abstract { 'Manul•C symlinked installation of contribs & extensions' }
 
 #sub description {
 #    <<DESC;
@@ -25,7 +25,6 @@ sub abstract { 'Manul•C symlinked installation of contribs & plugins' }
 sub opt_spec {
     [ 'destination|d=s', 'Manul•C distribution root directory', ],
       #[ 'symlink!', 'Install submodules by symlinking', { default => !!1 } ],
-      #['plugin=s@', 'Specifiy plugins to install'],
 }
 
 sub link_to_dest {
