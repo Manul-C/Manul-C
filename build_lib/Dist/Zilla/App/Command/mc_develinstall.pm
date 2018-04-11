@@ -81,12 +81,12 @@ sub execute {
     }
 
     $this->log( "Preparing Manul•C Build contrib." );
-    my $buildContribDir = path( $root . "/contrib/ManulCBuild" );
+    my $buildContribDir = path( $root . "/extensions/ManulCBuild" );
     $this->runBuild( $buildContribDir );
 
     my $git = Git::Wrapper->new( $root );
     try {
-        my @submodList = grep { $_ !~ m[contrib/ManulCBuild] } map { ( split " " )[1] } $git->submodule;
+        my @submodList = grep { $_ !~ m[extensions/ManulCBuild] } map { ( split " " )[1] } $git->submodule;
         foreach my $submod ( @submodList ) {
             $this->log( "Installing $submod" );
             my $smDir = path( $root . "/$submod" );
