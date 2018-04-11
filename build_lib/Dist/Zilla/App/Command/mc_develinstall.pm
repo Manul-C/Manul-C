@@ -59,7 +59,7 @@ sub execute {
         path( $root . '/build_lib' ),
     );
 
-    my @autoCreateDirs = qw<lib/ManulC/Ext>;
+    my @autoCreateDirs = qw<lib/ManulC/Ext lib/ManulC/Contrib>;
 
     # Prepare environment variables for subprocesses
     $ENV{MANULC_SRC} = $root;
