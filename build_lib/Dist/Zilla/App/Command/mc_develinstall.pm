@@ -33,7 +33,7 @@ sub runBuild {
     my $cwd        = cwd;
     try {
         chdir $subDir or die "Can't chdir to $subDir: " . $!;
-        my $buildCmd = "./build";
+        my $buildCmd = "./mcb";
         $this->zilla->log_debug( "WARNING: $buildCmd is not executable." ) unless -e $buildCmd && -x $buildCmd;
         $buildCmd = "dzil" unless -x $buildCmd;
         my $cmd = "$buildCmd mc-linkinstall";
