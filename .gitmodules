@@ -2,5 +2,5 @@
 	path = extensions/ManulCBuild
 	url = git@github.com:Manul-C/ManulCBuild.git
 [submodule "extensions/EmptyPlugin"]
-	path = extensions/EmptyPlugin
+	path = extensions/EmptyExt
 	url = git@github.com:Manul-C/EmptyPlugin.git
