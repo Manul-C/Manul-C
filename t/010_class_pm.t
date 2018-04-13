@@ -1,6 +1,9 @@
 #
 
+use v5.24;
 use ManulCTest;
+use Test2::Tools::Tiny;
+use Data::Dumper;
 
 # --- Test for namespace::clean applied.
 
@@ -43,7 +46,7 @@ package __MCT::Ext::Test {
 }
 
 $o = __MCT::Ext::Test->new;
-ok( $o->does( "ManulC::Role::Ext" ), "valid extension object is created" );
+ok( $o->does( "ManulC::Role::Extension" ), "valid extension object is created" );
 
 package __MCT::TypedAttr {
     use ManulC::Class -allTypes;
@@ -53,5 +56,48 @@ package __MCT::TypedAttr {
         isa => Maybe [Str],
     );
 }
+
+# --- Test syntax sugar registering.
+
+my $rc;
+
+{
+    # Eval is producing warnings output we don't want to see.
+    local $SIG{__WARN__} = sub {};
+    $rc = eval <<MCT_SUGAR;
+package __MCT::SugarWillFail;
+use ManulC::Class -testSugar;
+tstSugar 'method1';
+1;
+MCT_SUGAR
+}
+
+is( $rc, undef, "use of unregistered sugar: expected fail" );
+
+package __MCT::SugarSupport {
+    use ManulC::Util qw<:namespace>;
+    use ManulC::Class -sugar;
+    newSugar -testSugar => {
+        tstSugar => \&_handle_tstSugar,
+    };
+
+    sub _handle_tstSugar ($) {
+        my ( $methodName ) = @_;
+        my $target = caller;
+        injectCode( $target, $methodName, sub { "via sugar" } );
+    }
+}
+
+{
+    $rc = eval <<MCT_SUGAR;
+package __MCT::SugarWillWork;
+use ManulC::Class -testSugar;
+tstSugar 'method2';
+1;
+MCT_SUGAR
+}
+
+is($rc,1,"package with sugar compiled");
+is(__MCT::SugarWillWork::method2(), "via sugar", "sugar-registered method works");
 
 done_testing;
