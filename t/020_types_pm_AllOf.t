@@ -3,7 +3,7 @@
 use ManulCTest;
 use ManulC::Object;
 
-package __MCT::TypeTest {
+package __MCT::AllOfTest {
     use ManulC::Class;
     extends qw<ManulC::Object>;
     use ManulC::Types -all;
@@ -16,7 +16,6 @@ package __MCT::TypeTest {
 
 package __MCT::ARole {
     use ManulC::Role;
-    roleInit;
 
     sub m1 { }
 }
@@ -30,7 +29,7 @@ package __MCT::Conforming {
     sub m2 { }
 }
 
-my $obj = __MCT::TypeTest->new();
+my $obj = __MCT::AllOfTest->new();
 try {
     $obj->attr( __MCT::Conforming->new );
     ok( 1, "Accepted object of conforming class" );

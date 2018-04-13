@@ -4,10 +4,11 @@ package ManulC::Types;
 
 use ManulC::Util qw<:errors>;
 
-use Type::Library -base, -declare => qw<AllOf>;
+use Type::Library -base, -declare => qw<AllOf AnyOf>;
 use Type::Utils -all;
 require Error::TypeTiny;
 require Type::Tiny::Intersection;
+require Type::Tiny::Union;
 BEGIN { extends "Types::Standard"; }
 
 our $VERSION = 'v0.001.001';
@@ -29,6 +30,18 @@ declare AllOf,
     return Type::Tiny::Intersection->new(
         type_constraints => \@cParams,
         display_name => sprintf( 'AllOf[%s]', join( ",", @cParams ) ),
+    );
+  };
+
+declare AnyOf,
+  where { 1 },
+  constraint_generator => sub {
+    my @cParams = @_;
+    Error::TypeTiny->throw( message => "AnyOf[`a] requires at least one parameter" ) unless @cParams > 1;
+
+    return Type::Tiny::Union->new(
+        type_constraints => \@cParams,
+        display_name => sprintf( 'AnyOf[%s]', join( ",", @cParams ) ),
     );
   };
 
