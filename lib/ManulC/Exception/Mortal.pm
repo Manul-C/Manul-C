@@ -4,7 +4,6 @@ package ManulC::Exception::Mortal;
 
 use ManulC::Role;
 with qw<ManulC::Exception::Severity>;
-roleInit;
 
 our $VERSION = 'v0.001.001';
 

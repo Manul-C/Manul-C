@@ -2,7 +2,6 @@
 package ManulC::Exception::Severity;
 
 use ManulC::Role;
-roleInit;
 
 our $VERSION = 'v0.001.001';
 

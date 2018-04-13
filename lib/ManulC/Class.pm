@@ -4,8 +4,6 @@ package ManulC::Class;
 
 use v5.24;
 use utf8;
-use strict;
-use warnings;
 
 our $VERSION = 'v0.001.001';
 
@@ -15,6 +13,9 @@ require namespace::clean;
 require Syntax::Keyword::Try;
 require MooX::TypeTiny;
 
+use Data::Dumper;
+use B::CompilerPhase::Hook qw<enqueue_UNITCHECK>;
+
 use Module::Load qw<load load_remote>;
 use ManulC::Util qw<:namespace>;
 
@@ -23,12 +24,24 @@ use constant DEFAULT_BASEVERSION => '5.24';
 # Data about each class declared with this module.
 our %_classInfo;
 
-# Module parameters and their properties
-my %paramSet = (
-    '-role'     => { handler => \&_param_role, },
-    '-allTypes' => {},
-    '-extension'   => { roles => [qw<ManulC::Role::Extension>], },
+# Module options and their properties
+my %_optionSet = (
+    '-role'      => { handler => \&_option_role, },
+    '-allTypes'  => {},
+    '-extension' => { roles => [qw<ManulC::Role::Extension>], },
 );
+
+# Syntax sugars. See registerSugar().
+# Format: sugarName => { code => \&sub }
+my %_sugars = (
+    newSugar => {
+        code   => \&registerSugar,
+        option => '-sugar',
+    },
+);
+
+# Register all currently existing syntax sugars on their respective options
+_updateSugars();
 
 # **BEGIN Install wrappers for Moo's has/with/extends to record basic object
 
@@ -90,38 +103,53 @@ sub import {
     my $class  = shift;
     my $target = caller;
 
+    enqueue_UNITCHECK {
+        # Automate application of roles and any other post-load procedures.
+        _modInit( $target );
+    };
+
     $_classInfo{$target}{baseMod} = 'Moo';    # The target is a class by default.
 
     my $featureSet = ':' . DEFAULT_BASEVERSION;
-    my ( @passOnParams, @myParams );
+    my @passOnOpts;
+    my @myOpts = qw<-all>;                    # -all is applied by default and cannot be turned off.
+
+    #say STDERR Dumper( \%_optionSet );
 
     while ( @_ ) {
-        my $param = shift;
-        #say STDERR "ManulC::Class param: ", $param;
-        if ( $param =~ /^:/ ) {
-            $featureSet = $param;
+        my $option = shift;
+        if ( $option =~ /^:/ ) {
+            $featureSet = $option;
         }
-        elsif ( defined $paramSet{$param} ) {
-            #say STDERR "Using ", $param, " as mine";
-            push @myParams, $param;
+        elsif ( defined $_optionSet{$option} ) {
+            #say STDERR "Using ", $option, " as mine";
+            push @myOpts, $option;
         }
         else {
-            push @passOnParams, $param;
+            push @passOnOpts, $option;
         }
     }
 
-    foreach my $param ( @myParams ) {
-        ( my $paramName = $param ) =~ s/^-//;
+    foreach my $myOpt ( @myOpts ) {
+        ( my $optName = $myOpt ) =~ s/^-//;
+        #say STDERR "Applying option $myOpt to $target";
 
-        if ( $paramSet{$param}{roles} ) {
-            _assign_roles( $target, @{ $paramSet{$param}{roles} } );
+        if ( $_optionSet{$myOpt}{roles} ) {
+            _assign_roles( $target, @{ $_optionSet{$myOpt}{roles} } );
         }
 
-        if ( $paramSet{$param}{handler} ) {
-            $paramSet{$param}{handler}->( $class, $target );
+        if ( $_optionSet{$myOpt}{handler} ) {
+            $_optionSet{$myOpt}{handler}->( $class, $target );
         }
 
-        if ( my $installer = __PACKAGE__->can( "_install_$paramName" ) ) {
+        # Install pre-registered syntax sugars.
+        if ( $_optionSet{$myOpt}{sugars} ) {
+            foreach my $sgName ( @{ $_optionSet{$myOpt}{sugars} } ) {
+                ManulC::Util::injectCode( $target, $sgName, $_sugars{$sgName}{code} );
+            }
+        }
+
+        if ( my $installer = __PACKAGE__->can( "_install_$optName" ) ) {
             $installer->( $class, $target );
         }
     }
@@ -136,25 +164,26 @@ sub import {
         -except  => qw(meta),
     );
 
-    # class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
-    ManulC::Util::injectCode(
-        $target, ( $_classInfo{$target}{isRole} ? "roleInit" : "classInit" ),
-        sub { _modInit( $target ) }
-    );
+    ## class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
+    ## Not needed with enqueue_UNITCHECK
+    #ManulC::Util::injectCode(
+    #    $target, ( $_classInfo{$target}{isRole} ? "roleInit" : "classInit" ),
+    #    sub { _modInit( $target ) }
+    #);
 
     my $baseMod = $_classInfo{$target}{baseMod};
-    @_ = ( $baseMod, @passOnParams );
+    @_ = ( $baseMod, @passOnOpts );
     goto \&{"${baseMod}::import"};
 }
 
-# This sub applies what was defined by parameters.
+# This sub applies what was defined by options.
 sub _modInit {
     my $target = shift;
-
+    
     _apply_roles();
 }
 
-sub _param_role {
+sub _option_role {
     my ( $class, $target ) = @_;
 
     $_classInfo{$target}{isRole}  = 1;
@@ -234,19 +263,64 @@ sub registeredClass {
     return defined $_classInfo{$class};
 }
 
+sub _updateSugars {
+    # Clean up old sugar registrations;
+    foreach my $opt ( keys %_optionSet ) {
+        $_optionSet{$opt}{sugars} = [];
+    }
+    # Build new lists of registered sugars.
+    foreach my $sgName ( keys %_sugars ) {
+        push @{ $_optionSet{ $_sugars{$sgName}{option} }{sugars} }, $sgName;
+    }
+}
+
+# Registration of a new syntax sugar. Any module loaded after this call could make use of it.
+#registerSugar(
+#    -all => {
+#        sugar1 => \&_handler_sugar1,
+#    },
+#    -extensions => {
+#        sugar2 => {
+#            code => \&_handler_sugar2,
+#        },
+#    },
+#);
+sub registerSugar {
+    my %params = @_;
+
+    foreach my $option ( keys %params ) {
+        foreach my $sgName ( keys %{ $params{$option} } ) {
+            my $sgParam = $params{$option}{$sgName};
+
+            die "No parameters for new sugar $sgName" unless defined $sgParam;
+            die "Bad parameters type for new sugar $sgName: must be a hash or code ref but got "
+              . ( ref( $sgParam ) || 'SCALAR' )
+              unless ref( $sgParam ) && ref( $sgParam ) =~ /^(CODE|HASH)$/n;
+            die "No code defined for sugar $sgName"
+              unless ref( $sgParam ) eq 'CODE' || ( defined $sgParam->{code} && ref( $sgParam->{code} ) eq 'CODE' );
+            die "Duplicate sugar name $sgName" if exists $_sugars{$sgName};
+
+            $sgParam = { code => $sgParam } if ref( $sgParam ) eq 'CODE';
+            $sgParam->{option} = $option;
+            $_sugars{$sgName} = $sgParam;
+            push @{ $_optionSet{$option}{sugars} }, $sgName;
+        }
+    }
+
+    _updateSugars;
+}
+
 sub _after_extends {
     my $target = shift;
 
     push @{ $_classInfo{$target}{ISA} }, @_;
     delete $_classInfo{'.cached'};
-    _apply_roles( $target );
 }
 
 sub _after_with {
     my $target = shift;
 
     push @{ $_classInfo{$target}{WITH} }, @_;
-
     delete $_classInfo{'.cached'};
 }
 
@@ -263,22 +337,6 @@ sub _install_allTypes {
     my ( $class, $target ) = @_;
     #say STDERR "Installing all types into $target";
     load_remote( $target, "ManulC::Types", qw<-all> );
-}
-
-# --- Extensions support
-
-# Implementation of 'extension' sugar
-sub _handle_extension (%) {
-    my ( @params ) = @_;
-    my $extModule = caller;
-    require ManulC::ExtMgr;
-    ManulC::ExtMgr::registerExt( $extModule, @params );
-}
-
-sub _install_extension {
-    my ( $class, $target ) = @_;
-
-    injectCode( $target, 'extension', \&_handle_extension );
 }
 
 1;

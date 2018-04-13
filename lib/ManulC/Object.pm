@@ -10,7 +10,6 @@ use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 use ManulC::Util qw<:execControl :data :namespace>;
 
 use ManulC::Class -allTypes;
-classInit;
 
 our $VERSION = 'v0.001.001';
 
