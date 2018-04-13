@@ -7,13 +7,20 @@ use Module::Find;
 use Module::Path qw<module_path>;
 use ManulC::Util qw<:namespace>;
 
-use ManulC::Class -allTypes;
+use ManulC::Class -allTypes, -sugar;
 extends qw<ManulC::Object>;
 
 # --- Static variables
 our $VERSION = 'v0.001.001';
 
 my %registeredExtensions;    # Hash of registered extensions; maps a extension name into its options.
+
+# --- Pre-initializing code
+
+# Register 'extension' syntax sugar – extensions must register themselves by using it.
+newSugar -extension => {
+    extension => \&_extension_sugar,
+};
 
 # --- Public attributes
 
@@ -28,7 +35,7 @@ has extensions => (
 has namePrefix => (
     is      => 'rwp',
     coerce  => sub { $_[0] =~ m/^(.*?)(?:\::)?$/; $1 },
-    default => 'ManulC::Extension',
+    default => 'ManulC::Ext',
 );
 
 # List of directories to look for extensions in.
@@ -69,7 +76,23 @@ sub loadExtensions {
     }
 }
 
+# Returns extended name for a base class.
+sub mapClass {
+    my $this = shift;
+    my ($class) = shift;
+    # Just a stub for now.
+    return $class;
+}
+
 # --- Static methods
+
+# Handler for the 'extension' syntax sugar
+sub _extension_sugar (%) {
+    my ( @params ) = @_;
+    my $extModule = caller;    # What module is registering as extension
+    registerExtension( $extModule, @params );
+}
+
 sub registerExtension {
     my ( $extName, %params ) = @_;
 
@@ -86,7 +109,7 @@ sub initExtensions {
 sub initExtDirs {
     my $this = shift;
 
-    my $extDirs = $this->app->env->{MANULC_PLUGDIRS} // $this->app->env->{MANULC_LIBS};
+    my $extDirs = $this->app->env->{MANULC_EXTDIRS} // $this->app->env->{MANULC_LIBS};
     unless ( $extDirs ) {
         my $modDir = module_path( __PACKAGE__ ) // $INC{'ManulC/App.pm'};
         my ( $vol, $path ) = File::Spec->splitpath( $modDir );
