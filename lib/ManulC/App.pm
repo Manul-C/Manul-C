@@ -20,6 +20,15 @@ has env => (
     builder => 'initEnv',
 );
 
+has cfg => (
+    is        => 'rw',
+    isa       => InstanceOf ['ManulC::Config'],
+    predicate => 1,
+    lazy      => 1,
+    clearer   => 1,
+    builder   => 'initCfg',
+);
+
 # Class of the engine object.
 has engineClass => (
     is      => 'ro',
@@ -66,11 +75,13 @@ sub BUILD {
 
 # Create a new object within ManulC application ecosystem.
 around create => sub {
-    my $orig  = shift;
-    my $this  = shift;
-    my $class = shift;
+    my $orig      = shift;
+    my $this      = shift;
+    my $baseClass = shift;
 
-    $class = $this->_preValidateClass( $class );
+    $baseClass = $this->_preValidateClass( $baseClass );
+
+    my $class = $this->has_extMgr ? $this->extMgr->mapClass( $baseClass ) : $baseClass;
 
     my @profile;
 
@@ -123,6 +134,12 @@ sub initReq {
 sub initExtMgr {
     my $this = shift;
     return $this->create( 'ManulC::ExtMgr' );
+}
+
+sub initCfg {
+    my $this = shift;
+    
+    return $this->create('ManulC::Config');
 }
 
 1;

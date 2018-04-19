@@ -1,9 +1,9 @@
 #
 
-package ManulC::Exception::Mortal;
+package ManulC::Role::Exception::Mortal;
 
 use ManulC::Role;
-with qw<ManulC::Exception::Severity>;
+with qw<ManulC::Role::Exception::Severity>;
 
 our $VERSION = 'v0.001.001';
 

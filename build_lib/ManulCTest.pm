@@ -8,7 +8,7 @@ our $VERSION = 'v0.001.001';
 our $TESTING = !!1;
 
 use Module::Load qw<load_remote>;
-use Carp;
+use Carp qw<cluck confess>;
 require Test2::V0;
 require Syntax::Keyword::Try;
 
@@ -17,6 +17,7 @@ sub import {
     my $target = caller;
 
     $SIG{__DIE__} = sub { confess @_ };
+    $SIG{__WARN__} = sub { cluck @_ };
 
     require feature;
     feature->import( ':5.24' );

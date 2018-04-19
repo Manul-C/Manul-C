@@ -4,10 +4,12 @@ package ManulC::Exception;
 
 use Scalar::Util qw<blessed>;
 use Module::Find;
+use Data::Dumper;
 
 use ManulC::Class -allTypes;
 extends qw<ManulC::Object>;
 with 'Throwable';
+use MooX::Aliases;
 
 our $VERSION = 'v0.001.001';
 
@@ -26,6 +28,7 @@ has message => (
     is      => 'rw',
     lazy    => 1,
     builder => 'initMessage',
+    alias   => [q<error>],
 );
 
 # file and line define where exception was thrown
@@ -51,27 +54,17 @@ has object => (
     predicate => 1,
 );
 
-# --- Public methods
+# --- Static methods
 
-sub BUILD {
-    my $this = shift;
+# makeStackProfile(detectFrame => \&isItTheFrame) => @profile
+# Builds up a exception constructor profile consisting of keys stacktrace, file, line.
+# detectFrame callback will be called with a single paramter – raw stack frame data, as in frame_filter callback of
+# Devel::Stacktrace. It must return TRUE if the frame is the one where exception was actually thrown.
+sub makeStackProfile {
+    my %params = @_;
 
-    warn __PACKAGE__ . " must not be used directly to create exceptions."
-      if ref( $this ) eq __PACKAGE__;
-
-    warn ref( $this ) . " must consume either " . __PACKAGE__ . "::Mortal or " . __PACKAGE__ . "::Harmless roles"
-      unless $this->does( __PACKAGE__ . '::Mortal' ) || $this->does( __PACKAGE__ . '::Harmless' );
-}
-
-# Method throw() attempts to correctly determine correct file/line/stacktrace
-# values before passing control to the original method.
-around throw => sub {
-    my $orig  = shift;
-    my $class = shift;
-
-    $orig->( $class )
-      if ref( $class ) && Role::Tiny::does_role( $class, 'Throwable' );
-
+    my $itIsTheFrame = $params{detectFrame}
+      // sub { my $fr = shift; !Role::Tiny::does_role( $fr->{caller}[0], 'Throwable' ); };
     my $noSkip = 0;
 
     # Skip all throw() wrapper frames until actual caller is found.
@@ -81,24 +74,53 @@ around throw => sub {
             return 1 if $noSkip;
             my $fr = shift;
 
-            #say STDERR Dumper($fr);
-            return 0 if UNIVERSAL::isa( $fr->{caller}[0], __PACKAGE__ );
+            return 0 if !$itIsTheFrame->( $fr );
             return $noSkip = 1;
         }
     );
 
     my $frame = $trace->next_frame;
-
-    #say Dumper($trace);
-
-    return $orig->(
-        $class,
+    return (
         file       => $frame->filename,
         line       => $frame->line,
         stacktrace => $trace,
+    );
+}
+
+# --- Public methods
+
+around BUILDARGS => sub {
+    my $orig   = shift;
+    my $class  = shift;
+    my %params = @_;
+
+    my $noTracing = $params{stacktrace} && $params{file} && $params{line};
+    my @profile;
+
+    # Avoid doing extrajob if all required params are already in place.
+    unless ( $noTracing ) {
+        push @profile, makeStackProfile;
+    }
+
+    return $orig->(
+        $class,
+        @profile,
         @_
     );
 };
+
+sub BUILD {
+    my $this = shift;
+
+    warn __PACKAGE__ . " must not be used directly to create exceptions."
+      if ref( $this ) eq __PACKAGE__;
+
+    my $mortal   = "ManulC::Role::Exception::Mortal";
+    my $harmless = "ManulC::Role::Exception::Harmless";
+
+    warn ref( $this ) . " must consume either $mortal or $harmless roles"
+      unless $this->does( $mortal ) || $this->does( $harmless );
+}
 
 # $exception->transmute( $srcExcpt [, $enforce [, @profile ] ] ) – converts $srcExcpt into $exception class. If $enforce
 # is false then convertion is not done if $srcExcpt is a instance of ManulC::Exception. @profile is passed to the newly
@@ -117,7 +139,7 @@ sub transmute {
     }
 
     if ( ref( $e ) ) {
-        if ( $e->isa( 'ManulC::Exception' ) ) {
+        if ( $e->isa( __PACKAGE__ ) ) {
             if ( !$enforce || $e->isa( $class ) ) {
                 return $e;
             }

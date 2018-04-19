@@ -1,12 +1,15 @@
 #
 
-package ManulC::Exception::Fatal;
+package ManulC::Role::Exception::Harmless;
 
-use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+use ManulC::Role;
+with qw<ManulC::Role::Exception::Severity>;
 
 our $VERSION = 'v0.001.001';
+
+sub initSeverity {
+    return 'harmless';
+}
 
 1;
 

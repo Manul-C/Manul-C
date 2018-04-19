@@ -1,18 +1,29 @@
 #
-package ManulC::Exception::Severity;
+# ABSTRACT: This role implements parent object functionality.
+package ManulC::Role::Parent;
 
 use ManulC::Role;
 
 our $VERSION = 'v0.001.001';
 
-# Excpected to be a string defining exception severity. Most likely values are 'mortal' and 'harmless'.
-has severity => (
-    is      => 'ro',
-    lazy    => 1,
-    builder => 'initSeverity',
-);
+around create => sub {
+    my $orig      = shift;
+    my $this      = shift;
+    my $baseClass = shift;
 
-requires qw<initSeverity>;
+    my $child = $orig->( $this, $baseClass, @_ );
+
+    if ( $child->DOES( "ManulC::Role::Child" ) ) {
+        $child->parent( $this );
+
+        # For an object which would like to keep track of its childs or process new child in any other way.
+        if ( $this->can( "registerChildObject" ) ) {
+            $this->registerChildObject( $child );
+        }
+    }
+
+    return $child;
+};
 
 1;
 

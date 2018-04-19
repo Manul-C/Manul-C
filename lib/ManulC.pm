@@ -5,6 +5,9 @@ package ManulC;
 
 our $VERSION = 'v0.001.001';
 
+# --- Standard regexes
+our $specOptRx = qr/^-(?<optName>\w[\w\d]*$)/n;
+
 1;
 
 ## Copyright 2018 by Vadim Belman

@@ -1,12 +1,25 @@
 #
-
-package ManulC::Exception::Fatal;
+# ABSTRACT: This class implements section's -section option.
+package ManulC::Config::Spec::Opt::section::_section;
 
 use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+extends qw<ManulC::Object>;
+with qw<ManulC::Role::Config::opt>;
 
 our $VERSION = 'v0.001.001';
+
+# --- Public attributes
+
+# --- Private attributes
+
+# --- Public methods
+
+# --- Private methods
+
+# --- Attribute initializers
+sub initArity {
+    return 2;
+}
 
 1;
 

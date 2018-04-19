@@ -8,6 +8,7 @@ use Sub::Install qw<install_sub>;
 use Scalar::Util qw(blessed refaddr reftype weaken isweak);
 
 use ManulC::Util qw<:execControl :data :namespace>;
+use Carp qw<confess longmess>;
 
 use ManulC::Class -allTypes;
 
@@ -98,6 +99,10 @@ sub BUILD {
     }
 }
 
+sub DEMOLISH {
+    my $this = shift;
+}
+
 # Create a new object.
 sub _preValidateClass {
     my $this = shift;
@@ -114,14 +119,21 @@ sub create {
     my $this  = shift;
     my $class = shift;
 
-    $class = $this->_preValidateClass( $class );
+    try {
+        $class = $this->_preValidateClass( $class );
 
-    # Note that application itself will always have app attribute set to undef.
-    if ( $this->has_app && defined $this->app ) {
-        return $this->app->create( $class, @_ );
+        # Note that application itself will always have app attribute set to undef.
+        if ( $this->has_app && defined $this->app ) {
+            return $this->app->create( $class, @_ );
+        }
+
+        return $class->new( @_ );
     }
-
-    return $class->new( @_ );
+    catch {
+        say STDERR longmess( "CATCH!!!!" );
+        say STDERR longmess( ref( $@ ) . ":" . $@ );
+        confess "Failed:$@";
+    }
 }
 
 # --- Exception support methods.
@@ -135,29 +147,12 @@ sub _makeExceptionProfile {
 
     my @profile = (
         object => $this,
-    );
-
-    my $backFrames = 1;
-    my $thisPkg    = ref( $this );
-    while ( !defined $pkg ) {
-        my @ci = caller( $backFrames );
-
-        if ( $ci[3] =~ /::(Throw|Transmute)$/n ) {
-
-            # Found the stack frame.
-            ( $pkg, $fileName, $line ) = @ci[ 0, 1, 2 ];
-        }
-        else {
-            $backFrames++;
-        }
-    }
-
-    my $skipCnt    = 0;
-    my $stackTrace = Devel::StackTrace->new(
-        frame_filter => sub {
-            return ( $skipCnt++ > $backFrames );
-        },
-        message => "",
+        ManulC::Exception::makeStackProfile(
+            detectFrame => sub {
+                my $fr = shift;
+                return ( $fr->{caller}[3] =~ /::(Throw|Transmute|Rethrow)$/n );
+            }
+          )
     );
 
     push @profile, app => $this->app if $this->has_app;
@@ -213,8 +208,9 @@ sub Transmute {
 }
 
 sub Rethrow {
-    my $this = shift;
-    my ( $class, $e ) = @_;
+    my $this  = shift;
+    my $class = shift;
+    my $e     = shift;
 
     $class = $this->_completeException( $class );
 
@@ -235,6 +231,16 @@ sub Rethrow {
 # Very simplistic ManulC::Exception::Fatal thrower, replacement for die.
 sub fail {
     shift->Throw( Fatal => join( '', @_ ) );
+}
+
+# Report a simple warning. Good of quick hacks only.
+sub warn {
+    my $this = shift;
+    my @prefix = ( "[", ref( $this ), "] " );
+    if ( $this->has_app && defined $this->app ) {
+        return $this->warn( @prefix, @_ );
+    }
+    return warn join( "", @prefix, @_ );
 }
 
 # --- Attribute initialization methods

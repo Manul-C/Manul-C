@@ -29,6 +29,8 @@ my %_optionSet = (
     '-role'      => { handler => \&_option_role, },
     '-allTypes'  => {},
     '-extension' => { roles => [qw<ManulC::Role::Extension>], },
+    '-parent'    => { roles => [qw<ManulC::Role::Parent>], },
+    '-child'     => { roles => [qw<ManulC::Role::Child>], },
 );
 
 # Syntax sugars. See registerSugar().
@@ -103,11 +105,6 @@ sub import {
     my $class  = shift;
     my $target = caller;
 
-    enqueue_UNITCHECK {
-        # Automate application of roles and any other post-load procedures.
-        _modInit( $target );
-    };
-
     $_classInfo{$target}{baseMod} = 'Moo';    # The target is a class by default.
 
     my $featureSet = ':' . DEFAULT_BASEVERSION;
@@ -164,8 +161,16 @@ sub import {
         -except  => qw(meta),
     );
 
-    ## class/roleInit MUST be called by a class/role right after 'use Optrade::Role'.
-    ## Not needed with enqueue_UNITCHECK
+    if ( $_classInfo{$target}{isRole} ) {
+        # Auto-init roles only where 'extends' sugar is not used.
+        # For classes we only can do it _after_ extends for the roles to be correctly applied
+        enqueue_UNITCHECK {
+            # Automate application of roles and any other post-load procedures.
+            _modInit( $target );
+        };
+    }
+
+    # classInit might be useful for non-ManulC::Object based classes. Though there must be no such classes!
     #ManulC::Util::injectCode(
     #    $target, ( $_classInfo{$target}{isRole} ? "roleInit" : "classInit" ),
     #    sub { _modInit( $target ) }
@@ -179,8 +184,8 @@ sub import {
 # This sub applies what was defined by options.
 sub _modInit {
     my $target = shift;
-    
-    _apply_roles();
+
+    _apply_roles( $target );
 }
 
 sub _option_role {
@@ -197,22 +202,45 @@ sub _assign_roles {
 }
 
 # Applies earlier recorded roles to the class.
+# XXX REDO!!!!
 sub _apply_roles {
     my @targets = grep { defined $_classInfo{$_}{assignedRoles} } ( scalar( @_ ) ? @_ : keys %_classInfo );
+    
+    return if @targets < 1;
+
+    #state $level = 0;
+    state $nowApplying = 0;
+    
+    #my $pfx = "  " x $level++;
+
+    #say STDERR $pfx, "###[$nowApplying] _apply_roles(", join( ",", @targets ), ")";
 
     foreach my $target ( @targets ) {
+        $nowApplying++;
         my @classRoles = @{ $_classInfo{$target}{assignedRoles} };
-
+        #say STDERR $pfx, "###[$nowApplying] preloading role modules [", join( ",", @classRoles ), "] for $target";
         # Preload modules. This must reveal any possible syntax errors.
         loadModule( $_ ) foreach @classRoles;
-
-        push @{ $_classInfo{$target}{WITH} }, @classRoles;
-
-        _apply_roles( @classRoles );
-        Moo::Role->apply_roles_to_package( $target, @classRoles );
-        $_classInfo{$target}{baseMod}->_maybe_reset_handlemoose( $target );
-        delete $_classInfo{$target}{assignedRoles};
+        $nowApplying--;
     }
+
+    if ( !$nowApplying ) {
+        #say STDERR $pfx, "###[$nowApplying] Actually applying roles";
+        foreach my $target ( @targets ) {
+            my @classRoles = @{ $_classInfo{$target}{assignedRoles} };
+
+            push @{ $_classInfo{$target}{WITH} }, @classRoles;
+
+            #say STDERR $pfx, "###[$nowApplying] Apply roles->roles for $target: [", join( ",", @classRoles ), "]";
+            _apply_roles( @classRoles );
+            Moo::Role->apply_roles_to_package( $target, @classRoles );
+            $_classInfo{$target}{baseMod}->_maybe_reset_handlemoose( $target );
+            delete $_classInfo{$target}{assignedRoles};
+        }
+    }
+    
+    #$level--;
+
 }
 
 # _rebuildCache() rebuilds cached information about class' structures. Note that it doesn't rebuilds all information but
@@ -313,8 +341,12 @@ sub registerSugar {
 sub _after_extends {
     my $target = shift;
 
+    #say STDERR "_after_extends(", $target, ")";
+
     push @{ $_classInfo{$target}{ISA} }, @_;
     delete $_classInfo{'.cached'};
+
+    _modInit( $target );
 }
 
 sub _after_with {
@@ -327,6 +359,8 @@ sub _after_with {
 sub _after_has {
     my $target = shift;
     my ( $attr ) = @_;
+
+    #say STDERR "Recording attribute $attr on $target";
 
     my $attrData = { attr => $attr, options => [ @_[ 1 .. $#_ ] ] };
     push @{ $_classInfo{$target}{registeredAttrs}{list} }, $attrData;

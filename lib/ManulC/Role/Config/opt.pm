@@ -1,12 +1,26 @@
 #
+# ABSTRACT: This role defines config spec option behavior
+package ManulC::Role::Config::opt;
 
-package ManulC::Exception::Fatal;
-
-use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+use ManulC::Role -allTypes;
+use MooX::ClassAttribute;
 
 our $VERSION = 'v0.001.001';
+
+# --- Public attributes
+class_has arity => (
+    is => 'ro',
+    builder => 'initArity',
+);
+
+# --- Private attributes
+
+# --- Public methods
+
+# --- Private methods
+
+# --- Attribute initializers
+requires q<initArity>;
 
 1;
 

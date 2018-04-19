@@ -152,6 +152,7 @@ sub loadModule {
 
     my $loaded = is_loaded( $module );
     if ( !$loaded ) {
+        local $SIG{__DIE__}; # Preserve original exception handling.
         # Don't use try here – avoid 3rd party dependencies
         eval {
             load( $module );

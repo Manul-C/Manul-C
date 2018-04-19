@@ -1,12 +1,21 @@
 #
-
-package ManulC::Exception::Fatal;
+# ABSTRACT: This exception is a general failure for config-related code
+package ManulC::Exception::Config::Fatal;
 
 use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+extends qw<ManulC::Exception::Fatal>;
 
 our $VERSION = 'v0.001.001';
+
+# --- Public attributes
+
+# --- Private attributes
+
+# --- Public methods
+
+# --- Private methods
+
+# --- Attribute initializers
 
 1;
 

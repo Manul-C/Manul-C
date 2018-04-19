@@ -1,12 +1,18 @@
 #
+package ManulC::Role::Exception::Severity;
 
-package ManulC::Exception::Fatal;
-
-use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+use ManulC::Role;
 
 our $VERSION = 'v0.001.001';
+
+# Excpected to be a string defining exception severity. Most likely values are 'mortal' and 'harmless'.
+has severity => (
+    is      => 'ro',
+    lazy    => 1,
+    builder => 'initSeverity',
+);
+
+requires qw<initSeverity>;
 
 1;
 

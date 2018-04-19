@@ -1,10 +1,9 @@
 #
-
-package ManulC::Exception::Fatal;
+# ABSTRACT: This exception is thrown by spec data iterator when no more elements left
+package ManulC::Exception::Config::NoSpecsLeft;
 
 use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+extends qw<ManulC::Exception::Fatal>;
 
 our $VERSION = 'v0.001.001';
 

@@ -1,15 +1,31 @@
 #
+# ABSTRACT: This role implements child object functionality
+package ManulC::Role::Child;
 
-package ManulC::Exception::Harmless;
-
-use ManulC::Role;
-with qw<ManulC::Exception::Severity>;
+use ManulC::Role -allTypes;
 
 our $VERSION = 'v0.001.001';
 
-sub initSeverity {
-    return 'harmless';
+has parent => (
+    is => 'rw',
+    isa => ConsumerOf["ManulC::Role::Parent"],
+    weak_ref => 1,
+    predicate => 1,
+);
+
+has _abc123 => (is=>'rw');
+
+sub _child {
+    my $this = shift;
 }
+
+around DEMOLISH => sub {
+    my $this = shift;
+    my ($in_global) = @_;
+    if (!$in_global && defined $this->parent && $this->parent->can("deRegisterChildObject")) {
+        $this->parent->deRegisterChildObject($this);
+    }
+};
 
 1;
 

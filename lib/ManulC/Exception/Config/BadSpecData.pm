@@ -1,10 +1,9 @@
 #
-
-package ManulC::Exception::Fatal;
+# ABSTRACT: This excpetion signals that spec data is malformed
+package ManulC::Exception::Config::BadSpecData;
 
 use ManulC::Class;
-extends qw<ManulC::Exception>;
-with qw<ManulC::Role::Exception::Mortal>;
+extends qw<ManulC::Exception::Fatal>;
 
 our $VERSION = 'v0.001.001';
 
